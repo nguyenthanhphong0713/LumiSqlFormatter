@@ -15,5 +15,7 @@ namespace LumiSqlFormatter
     public static class PkgCmdIDList
     {
         public const uint cmdidOpenSettings = 0x0100;
+        public const uint cmdidFormatUppercase = 0x0110;
+        public const uint cmdidFormatLowercase = 0x0120;
     }
 }

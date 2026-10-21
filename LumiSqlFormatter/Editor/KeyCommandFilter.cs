@@ -24,6 +24,9 @@ namespace LumiSqlFormatter.Editor
         private readonly Popup _suggestionPopup;
         private readonly SnippetSuggestionPopup _popupContent;
 
+        public static KeyCommandFilter CurrentActiveFilter { get; private set; }
+        public static IWpfTextView CurrentActiveTextView => CurrentActiveFilter?._textView;
+
         internal IOleCommandTarget NextCommandHandler { get; set; }
 
         public KeyCommandFilter(IWpfTextView textView, IVsTextView vsTextView)
@@ -33,6 +36,9 @@ namespace LumiSqlFormatter.Editor
             _settingsService = SettingsService.Instance;
             _parsingService = SqlTokenParsingService.Instance;
             _snippetService = SnippetService.Instance;
+
+            CurrentActiveFilter = this;
+            _textView.GotAggregateFocus += (s, e) => CurrentActiveFilter = this;
 
             // Initialize Suggestion Popup
             _popupContent = new SnippetSuggestionPopup();
@@ -47,9 +53,69 @@ namespace LumiSqlFormatter.Editor
             };
         }
 
+        public static void FormatTextView(IWpfTextView textView, BatchFormatMode mode)
+        {
+            if (textView == null)
+                return;
+
+            try
+            {
+                var selection = textView.Selection;
+                if (selection != null && !selection.IsEmpty && selection.SelectedSpans.Count > 0)
+                {
+                    var span = selection.StreamSelectionSpan.SnapshotSpan;
+                    string originalText = span.GetText();
+                    string formattedText = SqlTokenParsingService.Instance.FormatBatch(originalText, mode);
+
+                    if (!string.Equals(originalText, formattedText, StringComparison.Ordinal))
+                    {
+                        using (var edit = textView.TextBuffer.CreateEdit())
+                        {
+                            edit.Replace(span, formattedText);
+                            edit.Apply();
+                        }
+                    }
+                }
+                else
+                {
+                    // No selection: format the whole document
+                    var snapshot = textView.TextBuffer.CurrentSnapshot;
+                    string originalText = snapshot.GetText();
+                    string formattedText = SqlTokenParsingService.Instance.FormatBatch(originalText, mode);
+
+                    if (!string.Equals(originalText, formattedText, StringComparison.Ordinal))
+                    {
+                        using (var edit = textView.TextBuffer.CreateEdit())
+                        {
+                            edit.Replace(new Span(0, snapshot.Length), formattedText);
+                            edit.Apply();
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Silently ignore editor formatting errors
+            }
+        }
+
         public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
         {
             Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (pguidCmdGroup == GuidList.guidLumiSqlCmdSet)
+            {
+                if (prgCmds != null && cCmds > 0)
+                {
+                    uint cmdId = prgCmds[0].cmdID;
+                    if (cmdId == PkgCmdIDList.cmdidFormatUppercase || cmdId == PkgCmdIDList.cmdidFormatLowercase)
+                    {
+                        prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
+                        return VSConstants.S_OK;
+                    }
+                }
+            }
+
             if (NextCommandHandler != null)
             {
                 return NextCommandHandler.QueryStatus(ref pguidCmdGroup, cCmds, prgCmds, pCmdText);
@@ -60,6 +126,36 @@ namespace LumiSqlFormatter.Editor
         public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
         {
             Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+            CurrentActiveFilter = this;
+
+            // Check if command is from Lumi SQL command set
+            if (pguidCmdGroup == GuidList.guidLumiSqlCmdSet)
+            {
+                if (nCmdID == PkgCmdIDList.cmdidFormatUppercase)
+                {
+                    FormatTextView(_textView, BatchFormatMode.UppercaseKeywords);
+                    return VSConstants.S_OK;
+                }
+                if (nCmdID == PkgCmdIDList.cmdidFormatLowercase)
+                {
+                    FormatTextView(_textView, BatchFormatMode.LowercaseAllExceptPreserved);
+                    return VSConstants.S_OK;
+                }
+            }
+
+            // Check for configured Format Uppercase shortcut
+            if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.FormatUppercaseShortcut))
+            {
+                FormatTextView(_textView, BatchFormatMode.UppercaseKeywords);
+                return VSConstants.S_OK;
+            }
+
+            // Check for configured Format Lowercase shortcut
+            if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.FormatLowercaseShortcut))
+            {
+                FormatTextView(_textView, BatchFormatMode.LowercaseAllExceptPreserved);
+                return VSConstants.S_OK;
+            }
 
             // Check for Ctrl+Alt+S shortcut to open Quick Snippet Creator
             if (Keyboard.IsKeyDown(Key.S) && 

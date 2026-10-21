@@ -377,5 +377,44 @@ namespace LumiSqlFormatter.UI.Views
             doc.Blocks.Add(paragraph);
             return doc;
         }
+
+        private void OnShortcutTextBoxPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Ignore lone modifier keys
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
+                e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
+                e.Key == Key.LeftShift || e.Key == Key.RightShift ||
+                e.Key == Key.LWin || e.Key == Key.RWin ||
+                (e.Key == Key.System && (e.SystemKey == Key.LeftAlt || e.SystemKey == Key.RightAlt)))
+            {
+                return;
+            }
+
+            var textBox = sender as TextBox;
+            if (textBox == null)
+                return;
+
+            e.Handled = true;
+
+            // Backspace or Delete to clear
+            if (e.Key == Key.Back || e.Key == Key.Delete)
+            {
+                textBox.Text = string.Empty;
+                var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                binding?.UpdateSource();
+                return;
+            }
+
+            Key actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+            ModifierKeys modifiers = Keyboard.Modifiers;
+
+            string formatted = ShortcutHelper.FormatShortcut(modifiers, actualKey);
+            if (!string.IsNullOrEmpty(formatted))
+            {
+                textBox.Text = formatted;
+                var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                binding?.UpdateSource();
+            }
+        }
     }
 }

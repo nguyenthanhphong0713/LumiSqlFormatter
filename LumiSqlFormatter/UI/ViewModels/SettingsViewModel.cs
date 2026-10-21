@@ -101,6 +101,20 @@ namespace LumiSqlFormatter.UI.ViewModels
             set => SetProperty(ref _snippetsDirectoryPath, value);
         }
 
+        private string _formatUppercaseShortcut = "Ctrl+Alt+U";
+        public string FormatUppercaseShortcut
+        {
+            get => _formatUppercaseShortcut;
+            set => SetProperty(ref _formatUppercaseShortcut, value);
+        }
+
+        private string _formatLowercaseShortcut = "Ctrl+Alt+L";
+        public string FormatLowercaseShortcut
+        {
+            get => _formatLowercaseShortcut;
+            set => SetProperty(ref _formatLowercaseShortcut, value);
+        }
+
         public SnippetTheme SnippetTheme
         {
             get => _snippetTheme;
@@ -257,6 +271,8 @@ namespace LumiSqlFormatter.UI.ViewModels
             _enableSnippetSuggestions = currentSettings.EnableSnippetSuggestions;
             _snippetsDirectoryPath = _settingsService.GetSnippetsDirectory();
             _snippetTheme = currentSettings.SnippetTheme;
+            _formatUppercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatUppercaseShortcut) ? currentSettings.FormatUppercaseShortcut : "Ctrl+Alt+U";
+            _formatLowercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatLowercaseShortcut) ? currentSettings.FormatLowercaseShortcut : "Ctrl+Alt+L";
 
             // Initialize commands
             SaveSettingsCommand = new RelayCommand(SaveSettings);
@@ -308,7 +324,9 @@ namespace LumiSqlFormatter.UI.ViewModels
                 EnableSnippets = EnableSnippets,
                 EnableSnippetSuggestions = EnableSnippetSuggestions,
                 SnippetsDirectoryPath = SnippetsDirectoryPath,
-                SnippetTheme = SnippetTheme
+                SnippetTheme = SnippetTheme,
+                FormatUppercaseShortcut = FormatUppercaseShortcut,
+                FormatLowercaseShortcut = FormatLowercaseShortcut
             };
 
             _settingsService.SaveSettings(settings);

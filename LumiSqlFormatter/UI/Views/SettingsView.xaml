@@ -35,7 +35,7 @@
                         <TextBlock Text="PHONGNT" FontWeight="Bold" FontSize="10" Foreground="White"/>
                     </Border>
                     <Border Background="#2D7D9A" CornerRadius="3" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v1.1.3" FontWeight="SemiBold" FontSize="10" Foreground="White"/>
+                        <TextBlock Text="v1.1.4" FontWeight="SemiBold" FontSize="10" Foreground="White"/>
                     </Border>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="T-SQL Formatting &amp; Snippets" FontSize="11" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
@@ -53,7 +53,8 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Left: Options Panel -->
-                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,12,0">
+                    <StackPanel Margin="0,0,4,0">
                         <GroupBox Padding="10" Margin="0,0,0,10">
                             <GroupBox.Header>
                                 <TextBlock Text="Tùy chọn tự động viết hoa (Auto-Capitalization)" FontWeight="SemiBold" Foreground="#007ACC"/>
@@ -92,6 +93,43 @@
                                 <ComboBox ItemsSource="{Binding CasingStyleOptions}" 
                                           SelectedItem="{Binding FunctionCasing, Mode=TwoWay}"
                                           Margin="0,0,0,4" Height="26"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Padding="10" Margin="0,0,0,10">
+                            <GroupBox.Header>
+                                <TextBlock Text="Phím tắt định dạng (Format Shortcuts)" FontWeight="SemiBold" Foreground="#007ACC"/>
+                            </GroupBox.Header>
+                            <StackPanel>
+                                <Grid Margin="0,2,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="100"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <TextBlock Text="Format Uppercase:" FontWeight="Medium"/>
+                                        <TextBlock Text="In hoa từ khóa (như Auto-Cap)" FontSize="10" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding FormatUppercaseShortcut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                             PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
+                                             Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
+                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+U)"/>
+                                </Grid>
+
+                                <Grid Margin="0,2,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="100"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <TextBlock Text="Format Lowercase:" FontWeight="Medium"/>
+                                        <TextBlock Text="Chữ thường (giữ nguyên @biến, #bảng)" FontSize="10" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding FormatLowercaseShortcut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                             PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
+                                             Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
+                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+L)"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
 
@@ -166,6 +204,7 @@
                                     ToolTip="Gỡ bỏ hoàn toàn Lumi SQL Formatter và các extension cũ khỏi SSMS"/>
                         </Grid>
                     </StackPanel>
+                    </ScrollViewer>
 
                     <!-- Right: Live Preview Panel (Syntax Highlighted & Theme-Reactive) -->
                     <GroupBox Grid.Column="1" Padding="8">

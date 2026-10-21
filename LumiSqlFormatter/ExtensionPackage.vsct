@@ -16,17 +16,42 @@
     </Menus>
 
     <Groups>
-      <Group guid="guidLumiSqlCmdSet" id="TopLevelMenuGroup" priority="0x0600">
+      <!-- Formatting Commands Group inside Top Level Menu -->
+      <Group guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" priority="0x0100">
+        <Parent guid="guidLumiSqlCmdSet" id="TopLevelMenu"/>
+      </Group>
+
+      <!-- Settings Group inside Top Level Menu -->
+      <Group guid="guidLumiSqlCmdSet" id="TopLevelMenuGroup" priority="0x0200">
         <Parent guid="guidLumiSqlCmdSet" id="TopLevelMenu"/>
       </Group>
       
-      <!-- Also add to Tools menu for convenience -->
+      <!-- Also add Settings to Tools menu for convenience -->
       <Group guid="guidLumiSqlCmdSet" id="ToolsMenuGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
+      </Group>
+
+      <!-- Editor Context Menu Group (Right-Click in Query Editor) -->
+      <Group guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" priority="0x0200">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
       </Group>
     </Groups>
 
     <Buttons>
+      <Button guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100" type="Button">
+        <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+        <Strings>
+          <ButtonText>Lumi Format Uppercase</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110" type="Button">
+        <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+        <Strings>
+          <ButtonText>Lumi Format Lowercase</ButtonText>
+        </Strings>
+      </Button>
+
       <Button guid="guidLumiSqlCmdSet" id="cmdidOpenSettings" priority="0x0100" type="Button">
         <Parent guid="guidLumiSqlCmdSet" id="TopLevelMenuGroup" />
         <Strings>
@@ -37,19 +62,37 @@
   </Commands>
 
   <CommandPlacements>
+    <!-- Place Format commands in Top Level Menu as well -->
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100">
+      <Parent guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110">
+      <Parent guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" />
+    </CommandPlacement>
+
+    <!-- Place Settings command in Tools Menu -->
     <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidOpenSettings" priority="0x0100">
       <Parent guid="guidLumiSqlCmdSet" id="ToolsMenuGroup" />
     </CommandPlacement>
   </CommandPlacements>
+
+  <KeyBindings>
+    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" editor="guidVSStd97" key1="U" mod1="Control Alt"/>
+    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" editor="guidVSStd97" key1="L" mod1="Control Alt"/>
+  </KeyBindings>
 
   <Symbols>
     <GuidSymbol name="guidLumiSqlPackage" value="{87E8E012-3F9C-4CD6-86A9-D97DDF8097E1}" />
     
     <GuidSymbol name="guidLumiSqlCmdSet" value="{D38D3551-7667-4B52-9A47-9759247E64B2}">
       <IDSymbol name="TopLevelMenu" value="0x1020" />
+      <IDSymbol name="TopLevelFormatMenuGroup" value="0x1025" />
       <IDSymbol name="TopLevelMenuGroup" value="0x1030" />
       <IDSymbol name="ToolsMenuGroup" value="0x1040" />
+      <IDSymbol name="EditorContextMenuGroup" value="0x1050" />
       <IDSymbol name="cmdidOpenSettings" value="0x0100" />
+      <IDSymbol name="cmdidFormatUppercase" value="0x0110" />
+      <IDSymbol name="cmdidFormatLowercase" value="0x0120" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

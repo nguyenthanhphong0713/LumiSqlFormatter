@@ -8,6 +8,12 @@ namespace LumiSqlFormatter.Models
         Light
     }
 
+    public enum BatchFormatMode
+    {
+        UppercaseKeywords,          // Lumi Format Uppercase: All keywords/types/functions uppercase
+        LowercaseAllExceptPreserved // Lumi Format Lowercase: All code lower, keep @variables, temp table variables, #temp tables
+    }
+
     [Serializable]
     public class FormatterSettings
     {
@@ -20,6 +26,9 @@ namespace LumiSqlFormatter.Models
         public string SnippetsDirectoryPath { get; set; } = string.Empty;
         public SnippetTheme SnippetTheme { get; set; } = SnippetTheme.Dark;
 
+        public string FormatUppercaseShortcut { get; set; } = "Ctrl+Alt+U";
+        public string FormatLowercaseShortcut { get; set; } = "Ctrl+Alt+L";
+
         public FormatterSettings Clone()
         {
             return new FormatterSettings
@@ -31,7 +40,9 @@ namespace LumiSqlFormatter.Models
                 EnableSnippets = this.EnableSnippets,
                 EnableSnippetSuggestions = this.EnableSnippetSuggestions,
                 SnippetsDirectoryPath = this.SnippetsDirectoryPath,
-                SnippetTheme = this.SnippetTheme
+                SnippetTheme = this.SnippetTheme,
+                FormatUppercaseShortcut = this.FormatUppercaseShortcut,
+                FormatLowercaseShortcut = this.FormatLowercaseShortcut
             };
         }
     }

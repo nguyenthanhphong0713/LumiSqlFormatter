@@ -268,6 +268,256 @@ namespace LumiSqlFormatter.Services
             return char.ToUpperInvariant(input[0]) + input.Substring(1).ToLowerInvariant();
         }
 
+        /// <summary>
+        /// Performs batch formatting on an entire SQL script or selected text span:
+        /// - UppercaseKeywords: converts all reserved keywords, data types, and built-in functions to UPPERCASE,
+        ///   while preserving comments, string literals, bracketed identifiers, user variables, and temp tables.
+        /// - LowercaseAllExceptPreserved: converts all code text to lowercase,
+        ///   while preserving comments, string literals, bracketed identifiers, user variables (@variables, table variables),
+        ///   and temp tables (#temp, ##temp).
+        /// </summary>
+        public string FormatBatch(string text, BatchFormatMode mode)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            int n = text.Length;
+            var sb = new System.Text.StringBuilder(n);
+            int i = 0;
+
+            while (i < n)
+            {
+                char c = text[i];
+
+                // 1. Single-line comment: --
+                if (c == '-' && i + 1 < n && text[i + 1] == '-')
+                {
+                    sb.Append("--");
+                    i += 2;
+                    while (i < n && text[i] != '\r' && text[i] != '\n')
+                    {
+                        sb.Append(text[i++]);
+                    }
+                    continue;
+                }
+
+                // 2. Multi-line comment: /* ... */
+                if (c == '/' && i + 1 < n && text[i + 1] == '*')
+                {
+                    sb.Append("/*");
+                    i += 2;
+                    int depth = 1;
+                    while (i < n && depth > 0)
+                    {
+                        if (text[i] == '/' && i + 1 < n && text[i + 1] == '*')
+                        {
+                            depth++;
+                            sb.Append("/*");
+                            i += 2;
+                        }
+                        else if (text[i] == '*' && i + 1 < n && text[i + 1] == '/')
+                        {
+                            depth--;
+                            sb.Append("*/");
+                            i += 2;
+                        }
+                        else
+                        {
+                            sb.Append(text[i++]);
+                        }
+                    }
+                    continue;
+                }
+
+                // 3. String literal: '...' or N'...'
+                if (c == '\'' || ((c == 'N' || c == 'n') && i + 1 < n && text[i + 1] == '\''))
+                {
+                    if (c == 'N' || c == 'n')
+                    {
+                        sb.Append(c);
+                        i++;
+                    }
+                    sb.Append('\'');
+                    i++;
+                    while (i < n)
+                    {
+                        if (text[i] == '\'')
+                        {
+                            sb.Append('\'');
+                            i++;
+                            if (i < n && text[i] == '\'')
+                            {
+                                // Escaped single quote inside string
+                                sb.Append('\'');
+                                i++;
+                            }
+                            else
+                            {
+                                break; // End of string literal
+                            }
+                        }
+                        else
+                        {
+                            sb.Append(text[i++]);
+                        }
+                    }
+                    continue;
+                }
+
+                // 4. Bracketed identifier: [...]
+                if (c == '[')
+                {
+                    sb.Append('[');
+                    i++;
+                    while (i < n)
+                    {
+                        if (text[i] == ']')
+                        {
+                            sb.Append(']');
+                            i++;
+                            if (i < n && text[i] == ']')
+                            {
+                                // Escaped bracket ]]
+                                sb.Append(']');
+                                i++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sb.Append(text[i++]);
+                        }
+                    }
+                    continue;
+                }
+
+                // 5. Double-quoted identifier: "..."
+                if (c == '"')
+                {
+                    sb.Append('"');
+                    i++;
+                    while (i < n)
+                    {
+                        if (text[i] == '"')
+                        {
+                            sb.Append('"');
+                            i++;
+                            if (i < n && text[i] == '"')
+                            {
+                                sb.Append('"');
+                                i++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sb.Append(text[i++]);
+                        }
+                    }
+                    continue;
+                }
+
+                // 6. User variables & table variables: @variable, @TempTable
+                if (c == '@')
+                {
+                    if (i + 1 < n && text[i + 1] == '@')
+                    {
+                        // System variable/function: @@VERSION, @@ROWCOUNT, @@ERROR
+                        int start = i;
+                        i += 2;
+                        while (i < n && (char.IsLetterOrDigit(text[i]) || text[i] == '_'))
+                        {
+                            i++;
+                        }
+                        string sysVar = text.Substring(start, i - start);
+                        if (mode == BatchFormatMode.UppercaseKeywords)
+                            sb.Append(sysVar.ToUpperInvariant());
+                        else
+                            sb.Append(sysVar.ToLowerInvariant());
+                        continue;
+                    }
+                    else
+                    {
+                        // User variable or table variable: preserve original casing!
+                        int start = i;
+                        i++;
+                        while (i < n && (char.IsLetterOrDigit(text[i]) || text[i] == '_' || text[i] == '$'))
+                        {
+                            i++;
+                        }
+                        string userVar = text.Substring(start, i - start);
+                        sb.Append(userVar);
+                        continue;
+                    }
+                }
+
+                // 7. Temp tables: #temp, ##globalTemp
+                if (c == '#')
+                {
+                    int start = i;
+                    i++;
+                    if (i < n && text[i] == '#')
+                    {
+                        i++;
+                    }
+                    while (i < n && (char.IsLetterOrDigit(text[i]) || text[i] == '_' || text[i] == '$'))
+                    {
+                        i++;
+                    }
+                    string tempTable = text.Substring(start, i - start);
+                    sb.Append(tempTable); // preserve original casing!
+                    continue;
+                }
+
+                // 8. Word / Identifier
+                if (char.IsLetter(c) || c == '_')
+                {
+                    int start = i;
+                    while (i < n && (char.IsLetterOrDigit(text[i]) || text[i] == '_'))
+                    {
+                        i++;
+                    }
+                    string word = text.Substring(start, i - start);
+
+                    if (mode == BatchFormatMode.UppercaseKeywords)
+                    {
+                        if (TryGetWordInfo(word, out var category, out _) && category != SqlWordCategory.None)
+                        {
+                            sb.Append(word.ToUpperInvariant());
+                        }
+                        else
+                        {
+                            sb.Append(word);
+                        }
+                    }
+                    else // LowercaseAllExceptPreserved
+                    {
+                        sb.Append(word.ToLowerInvariant());
+                    }
+                    continue;
+                }
+
+                // 9. Other characters (whitespace, punctuation, numbers, operators)
+                if (mode == BatchFormatMode.LowercaseAllExceptPreserved)
+                {
+                    sb.Append(char.ToLowerInvariant(c));
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+                i++;
+            }
+
+            return sb.ToString();
+        }
+
         private void InitializeTokenDictionary()
         {
             // 1. RESERVED KEYWORDS & SYNTAX CLAUSES
