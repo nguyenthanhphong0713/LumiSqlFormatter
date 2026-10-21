@@ -1,7 +1,7 @@
 # HƯỚNG DẪN SỬ DỤNG & TÀI LIỆU KỸ THUẬT TOÀN DIỆN
 # LUMI SQL FORMATTER & SMART SNIPPETS (PHONGNT)
 
-> **Phiên bản:** 1.1.3  
+> **Phiên bản:** 1.1.4  
 > **Tác giả:** PHONGNT  
 > **Dự án:** `LumiSqlFormatter.Extension.2026`  
 > **Môi trường hỗ trợ:** SQL Server Management Studio (SSMS 18, 19, 20, 22+ x64)
@@ -210,7 +210,7 @@ d:\LumiSqlFormatter\
 ├── README.md                                   # Giới thiệu tổng quan dự án
 └── LumiSqlFormatter\
     ├── LumiSqlFormatter.csproj                 # Cấu hình VSSDK, SSMS References
-    ├── source.extension.vsixmanifest           # VSIX Manifest (v1.1.3 - PHONGNT)
+    ├── source.extension.vsixmanifest           # VSIX Manifest (v1.1.4 - PHONGNT)
     ├── ExtensionPackage.cs                     # AsyncPackage đăng ký Menu, ToolWindow, OptionsPage
     ├── ExtensionPackage.vsct                   # Khai báo Top-Level Menu "Lumi SQL"
     ├── PostProcessVsix.ps1                     # Script đóng gói chuẩn SSMS VsixV2
@@ -221,6 +221,7 @@ d:\LumiSqlFormatter\
     │   └── SnippetTheme.cs                     # Enum: Dark, Light
     ├── Services/
     │   ├── SettingsService.cs                  # Quản lý đọc/ghi JSON tại folder tùy biến
+    │   ├── ShortcutHelper.cs                   # Xử lý phân tích và bắt phím tắt linh hoạt
     │   ├── SqlTokenParsingService.cs           # Lexical State Scanner & 510+ tokens dictionary
     │   └── SnippetService.cs                   # Mở rộng template, tính toán $CURSOR$, prefix match
     ├── Editor/
@@ -238,14 +239,31 @@ d:\LumiSqlFormatter\
     │       ├── QuickSnippetViewModel.cs
     │       └── SettingsViewModel.cs            # Binding logic, CRUD snippets, Theme logic
     └── Properties/
-        └── AssemblyInfo.cs                     # Version 1.1.3.0
+        └── AssemblyInfo.cs                     # Version 1.1.4.0
 ```
 
 ---
 
 ## 7. NHẬT KÝ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
 
-### Phiên bản 1.1.3 (Bản hiện tại)
+### Phiên bản 1.1.4 (Bản hiện tại)
+- **Bổ sung tính năng định dạng & quản lý Cache trong Context Menu (Chuột phải trong Editor) & Menu chính "Lumi SQL":**
+  - **Lumi Format Uppercase (`Ctrl+Alt+U`):** Quét toàn bộ khối mã được bôi đen (hoặc toàn bộ file nếu không bôi đen) và chuyển toàn bộ từ khóa, kiểu dữ liệu, hàm T-SQL sang IN HOA giống như tính năng auto-capitalization, bảo vệ an toàn chuỗi ký tự, chú thích, biến `@Year` và bảng tạm `#Temp`.
+  - **Lumi Format Lowercase (`Ctrl+Alt+L`):** Chuyển toàn bộ mã sang chữ thường, đồng thời giữ nguyên định dạng gốc của `@variables`, biến bảng tạm `Temp variable table` (`@TempTable`), `#temp` tables (`#TempTable`), chuỗi ký tự dữ liệu `'...'` và chú thích.
+  - **Lumi: Refresh Database Objects Cache (`Ctrl+Shift+R`):** Quét và nạp lại ngầm toàn bộ danh mục thủ tục và hàm của database hiện tại.
+  - **Diễn giải phím tắt đầy đủ trên Context Menu:** Mọi mục menu chuột phải đều thể hiện rõ ràng và đầy đủ phím tắt đi kèm ngay cạnh tên lệnh: `Lumi Format Uppercase (Ctrl+Alt+U)`, `Lumi Format Lowercase (Ctrl+Alt+L)` và `Lumi: Refresh Database Objects Cache (Ctrl+Shift+R)`, tự động cập nhật ngay khi người dùng đổi phím tắt.
+- **Quét & Nạp sẵn Stored Procedures & Functions & Database Metadata Cache chủ động:**
+  - **Nạp sẵn danh mục chuẩn hệ thống:** Nạp sẵn hơn 150 thủ tục lưu trữ hệ thống (`sp_executesql`, `sp_send_dbmail`, `sp_helptext`, `sp_who`, `sp_rename`...), thủ tục mở rộng (`xp_cmdshell`, `xp_fixeddrives`...) và hàm hệ thống (`fn_my_permissions`, `fn_virtualfilestats`, `fn_trace_gettable`...). Các đối tượng này luôn giữ nguyên format chuẩn trong định nghĩa của hệ thống và không bị tác động sai lệch bởi Upper hay Lower.
+  - **Bộ quét động hàm và thủ tục (Script Scanner):** Tự động bóc tách và loại trừ an toàn chuỗi ký tự và chú thích trước khi quét cú pháp; nhận diện chính xác định dạng gốc trong các câu lệnh khai báo (`CREATE/ALTER PROCEDURE`, `CREATE/ALTER FUNCTION`, `EXEC/EXECUTE`, `dbo.Func(...)`) để giữ nguyên định dạng trong định nghĩa trên toàn bộ kịch bản.
+  - **Cơ chế Cache metadata Database active (Database Metadata Cache):** Tự động truy vấn ngầm `sys.all_objects` / `sys.objects` từ phiên kết nối SSMS hiện tại để nạp toàn bộ danh mục thủ tục và hàm của database vào bộ nhớ cache in-memory.
+  - **Tự động nhận diện thay đổi Database (Context Switch Re-cache):** Khi người dùng chuyển sang kết nối hoặc database khác, cache cũ sẽ tự động được xóa và quét lại (Re-cache) cho phù hợp với database mới.
+  - **Làm mới Cache chủ động (Manual Refresh):** Bổ sung nút **"Làm Mới Cache Database"** trong **Tools -> Options** và lệnh **"Lumi: Refresh Database Objects Cache"** trên Menu chuột phải (Context Menu) cũng như Menu chính "Lumi SQL" để người dùng chủ động nạp lại metadata ngầm bất cứ lúc nào mà không gián đoạn thao tác soạn thảo.
+- **Tùy biến phím tắt thao tác (Hotkeys & Shortcuts Configuration):** Tích hợp khung cấu hình và bộ ghi nhận phím thông minh (Key recorder) trực tiếp trong **Tools -> Options**, cho phép người dùng tùy ý gán và đổi tổ hợp phím tắt cho cả 3 thao tác: Format Uppercase (`Ctrl+Alt+U`), Format Lowercase (`Ctrl+Alt+L`) và Refresh DB Cache (`Ctrl+Shift+R`).
+- **Sửa triệt để hiện tượng tràn và cắt chữ (Text Clipping) trên giao diện SSMS:** Tối ưu hóa các nhãn, combobox theme, thanh công cụ thư mục snippet và bổ sung cuộn dọc mượt mà trên mọi tỷ lệ màn hình và DPI scaling.
+
+---
+
+### Phiên bản 1.1.3
 - **Live Preview đồng bộ Theme Light/Dark & Tô màu cú pháp (Syntax Highlighting):** Khung xem trước Live Preview nay tự động chuyển đổi nền và màu sắc theo Theme Light/Dark đã chọn, hỗ trợ tô màu cú pháp chuẩn xác (Keywords xanh dương, Data Types xanh ngọc, Functions vàng đất, Comments xanh lá, Strings đỏ tươi) giúp kiểm tra trực quan, sinh động.
 - **Hiện đại hóa giao diện cấu hình chuẩn Enterprise (Không AI, không emoji):** Thiết kế lại thanh tiêu đề với thanh chỉ thị thương hiệu và huy hiệu phiên bản sắc nét; bổ sung các thẻ badge phân loại màu sắc (`KEYWORD`, `DATA TYPE`, `FUNCTION`), phím kích hoạt dạng chip hiện đại và nút bấm đồng bộ màu sắc chuẩn mực.
 - **Mở rộng ô lưới Snippets & Hỗ trợ GridSplitter:** Chiều cao ô lưới snippets được tăng lên 190px (hiển thị 6-7 snippet cùng lúc), bổ sung thanh kéo phân tách linh hoạt giúp xem được nhiều snippets theo kích thước màn hình.

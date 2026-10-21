@@ -36,6 +36,9 @@ namespace LumiSqlFormatter.Editor
             {
                 commandFilter.NextCommandHandler = nextCommandHandler;
             }
+
+            // Check active database context and refresh cache in background if needed
+            _ = LumiSqlFormatter.Services.DatabaseMetadataCacheService.Instance.CheckAndRefreshIfDatabaseChangedAsync();
         }
     }
 }

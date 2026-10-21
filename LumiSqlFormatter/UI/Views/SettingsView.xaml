@@ -98,7 +98,7 @@
 
                         <GroupBox Padding="10" Margin="0,0,0,10">
                             <GroupBox.Header>
-                                <TextBlock Text="Phím tắt định dạng (Format Shortcuts)" FontWeight="SemiBold" Foreground="#007ACC"/>
+                                <TextBlock Text="Phím tắt thao tác (Hotkeys &amp; Shortcuts)" FontWeight="SemiBold" Foreground="#007ACC"/>
                             </GroupBox.Header>
                             <StackPanel>
                                 <Grid Margin="0,2,0,6">
@@ -116,7 +116,7 @@
                                              FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+U)"/>
                                 </Grid>
 
-                                <Grid Margin="0,2,0,2">
+                                <Grid Margin="0,2,0,6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="100"/>
@@ -130,6 +130,53 @@
                                              Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
                                              FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+L)"/>
                                 </Grid>
+
+                                <Grid Margin="0,2,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="100"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <TextBlock Text="Refresh DB Cache:" FontWeight="Medium"/>
+                                        <TextBlock Text="Nạp lại danh sách Stored Procedures &amp; Functions" FontSize="10" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding RefreshDbCacheShortcut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                             PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
+                                             Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
+                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Shift+R)"/>
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Padding="10" Margin="0,0,0,10">
+                            <GroupBox.Header>
+                                <TextBlock Text="Database Metadata Cache (Thủ tục &amp; Hàm)" FontWeight="SemiBold" Foreground="#8E44AD"/>
+                            </GroupBox.Header>
+                            <StackPanel>
+                                <TextBlock Text="Tự động nạp danh sách Stored Procedures &amp; Functions từ database active để bảo toàn định dạng gốc:" FontSize="10.5" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                
+                                <Grid Margin="0,2,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Database hiện tại:" FontWeight="Medium" FontSize="11" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CurrentDatabaseInfo}" FontWeight="SemiBold" FontSize="11" Foreground="#007ACC" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
+                                <Grid Margin="0,2,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Trạng thái Cache:" FontWeight="Medium" FontSize="11" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CacheStatusText}" FontSize="11" Foreground="#107C41" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
+                                <Button Content="Làm Mới Cache Database" Command="{Binding RefreshDbCacheCommand}"
+                                        Height="24" FontWeight="SemiBold" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
+                                        BorderBrush="#8E44AD" BorderThickness="1" Cursor="Hand"
+                                        ToolTip="Kết nối lại và quét ngầm toàn bộ metadata mới nhất của database hiện tại (Mặc định: Ctrl+Shift+R)"/>
                             </StackPanel>
                         </GroupBox>
 
@@ -185,6 +232,7 @@
                                 <TextBlock Text="• Chú thích (-- và /* ... */)" Foreground="#2E7D32" Margin="0,1" TextWrapping="Wrap"/>
                                 <TextBlock Text="• Tên trong ngoặc ([...], &quot;...&quot;)" Foreground="#007ACC" Margin="0,1" TextWrapping="Wrap"/>
                                 <TextBlock Text="• Biến &amp; Bảng tạm (@Year, #Temp...)" Foreground="#008272" Margin="0,1" TextWrapping="Wrap"/>
+                                <TextBlock Text="• Stored Procedures &amp; Functions (sp_..., xp_..., fn_... và hàm khai báo)" Foreground="#7B1FA2" Margin="0,1" TextWrapping="Wrap"/>
                                 <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="0,1,0,0" Margin="0,6,0,0" Padding="0,4,0,0">
                                     <TextBlock Text="Bộ phân tích cú pháp: Microsoft ScriptDom T-SQL Lexer" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" FontSize="10.5" TextWrapping="Wrap"/>
                                 </Border>

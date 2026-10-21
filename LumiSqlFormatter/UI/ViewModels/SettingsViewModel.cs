@@ -5,10 +5,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms; // for OpenFileDialog/SaveFileDialog/FolderBrowserDialog
 using System.Windows.Input;
 using LumiSqlFormatter.Models;
 using LumiSqlFormatter.Services;
+using Microsoft.VisualStudio.Shell;
 
 namespace LumiSqlFormatter.UI.ViewModels
 {
@@ -27,6 +29,8 @@ namespace LumiSqlFormatter.UI.ViewModels
         private string _snippetsDirectoryPath;
         private string _previewSql;
         private string _statusMessage;
+        private string _currentDatabaseInfo;
+        private string _cacheStatusText;
 
         private SnippetItem _selectedSnippet;
         private string _editingShortcut;
@@ -113,6 +117,13 @@ namespace LumiSqlFormatter.UI.ViewModels
         {
             get => _formatLowercaseShortcut;
             set => SetProperty(ref _formatLowercaseShortcut, value);
+        }
+
+        private string _refreshDbCacheShortcut = "Ctrl+Shift+R";
+        public string RefreshDbCacheShortcut
+        {
+            get => _refreshDbCacheShortcut;
+            set => SetProperty(ref _refreshDbCacheShortcut, value);
         }
 
         public SnippetTheme SnippetTheme
@@ -241,6 +252,18 @@ namespace LumiSqlFormatter.UI.ViewModels
             set => EditingTemplate = value;
         }
 
+        public string CurrentDatabaseInfo
+        {
+            get => _currentDatabaseInfo;
+            set => SetProperty(ref _currentDatabaseInfo, value);
+        }
+
+        public string CacheStatusText
+        {
+            get => _cacheStatusText;
+            set => SetProperty(ref _cacheStatusText, value);
+        }
+
         public IEnumerable<CasingStyle> CasingStyleOptions => Enum.GetValues(typeof(CasingStyle)).Cast<CasingStyle>();
 
         public ICommand SaveSettingsCommand { get; }
@@ -253,6 +276,7 @@ namespace LumiSqlFormatter.UI.ViewModels
         public ICommand BrowseSnippetsFolderCommand { get; }
         public ICommand OpenSnippetsFolderCommand { get; }
         public ICommand ReloadSnippetsCommand { get; }
+        public ICommand RefreshDbCacheCommand { get; }
         public ICommand UninstallExtensionCommand { get; }
 
         public SettingsViewModel()
@@ -273,6 +297,7 @@ namespace LumiSqlFormatter.UI.ViewModels
             _snippetTheme = currentSettings.SnippetTheme;
             _formatUppercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatUppercaseShortcut) ? currentSettings.FormatUppercaseShortcut : "Ctrl+Alt+U";
             _formatLowercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatLowercaseShortcut) ? currentSettings.FormatLowercaseShortcut : "Ctrl+Alt+L";
+            _refreshDbCacheShortcut = !string.IsNullOrWhiteSpace(currentSettings.RefreshDbCacheShortcut) ? currentSettings.RefreshDbCacheShortcut : "Ctrl+Shift+R";
 
             // Initialize commands
             SaveSettingsCommand = new RelayCommand(SaveSettings);
@@ -285,8 +310,19 @@ namespace LumiSqlFormatter.UI.ViewModels
             BrowseSnippetsFolderCommand = new RelayCommand(BrowseSnippetsFolder);
             OpenSnippetsFolderCommand = new RelayCommand(OpenSnippetsFolder);
             ReloadSnippetsCommand = new RelayCommand(ReloadSnippets);
+            RefreshDbCacheCommand = new RelayCommand(ExecuteRefreshDbCache);
             UninstallExtensionCommand = new RelayCommand(UninstallExtension);
 
+            DatabaseMetadataCacheService.Instance.CacheUpdated += (s, e) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    UpdateDatabaseCacheInfo();
+                });
+            };
+
+            UpdateDatabaseCacheInfo();
             ReloadSnippetsList();
             UpdatePreviewSql();
 
@@ -326,7 +362,8 @@ namespace LumiSqlFormatter.UI.ViewModels
                 SnippetsDirectoryPath = SnippetsDirectoryPath,
                 SnippetTheme = SnippetTheme,
                 FormatUppercaseShortcut = FormatUppercaseShortcut,
-                FormatLowercaseShortcut = FormatLowercaseShortcut
+                FormatLowercaseShortcut = FormatLowercaseShortcut,
+                RefreshDbCacheShortcut = RefreshDbCacheShortcut
             };
 
             _settingsService.SaveSettings(settings);
@@ -625,6 +662,39 @@ $@"-- Live Preview (Formatting & Casing)
 
             _parsingService.TryGetWordInfo(word, out _, out string pascalCase);
             return _parsingService.FormatWord(word, style, pascalCase);
+        }
+
+        private void ExecuteRefreshDbCache()
+        {
+            _ = Task.Run(async () =>
+            {
+                await DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                UpdateDatabaseCacheInfo();
+            });
+        }
+
+        public void UpdateDatabaseCacheInfo()
+        {
+            var cache = DatabaseMetadataCacheService.Instance;
+            if (!string.IsNullOrEmpty(cache.CurrentDatabase))
+            {
+                CurrentDatabaseInfo = $"[{cache.CurrentDatabase}] {(string.IsNullOrEmpty(cache.CurrentServer) ? "" : $"({cache.CurrentServer})")}";
+            }
+            else
+            {
+                CurrentDatabaseInfo = "[Chưa có database active]";
+            }
+
+            if (cache.CachedCount > 0)
+            {
+                string timeStr = cache.LastRefreshedTime.HasValue ? cache.LastRefreshedTime.Value.ToString("HH:mm:ss") : "";
+                CacheStatusText = $"Đã nạp {cache.CachedCount} thủ tục & hàm {(string.IsNullOrEmpty(timeStr) ? "" : $"({timeStr})")}";
+            }
+            else
+            {
+                CacheStatusText = "Chưa nạp hoặc database rỗng";
+            }
         }
     }
 }

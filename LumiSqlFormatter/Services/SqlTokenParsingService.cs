@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using LumiSqlFormatter.Models;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Microsoft.VisualStudio.Text;
@@ -12,7 +13,8 @@ namespace LumiSqlFormatter.Services
         None = 0,
         ReservedKeyword = 1,
         DataType = 2,
-        BuiltInFunction = 3
+        BuiltInFunction = 3,
+        SystemProcedureOrFunction = 4
     }
 
     public class SqlTokenParsingService
@@ -20,6 +22,19 @@ namespace LumiSqlFormatter.Services
         private static readonly Lazy<SqlTokenParsingService> _instance = 
             new Lazy<SqlTokenParsingService>(() => new SqlTokenParsingService());
         public static SqlTokenParsingService Instance => _instance.Value;
+
+        // Regex patterns for scanning stored procedures and functions in SQL script
+        private static readonly Regex ProcFuncDefRegex = new Regex(
+            @"\b(?:CREATE|ALTER)\s+(?:OR\s+ALTER\s+)?(?:PROCEDURE|PROC|FUNCTION)\s+(?:\[?([A-Za-z0-9_]+)\]?\s*\.\s*)?\[?([A-Za-z0-9_]+)\]?",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex ExecRegex = new Regex(
+            @"\b(?:EXEC|EXECUTE)\s+(?:@[A-Za-z0-9_]+\s*=\s*)?(?:\[?([A-Za-z0-9_]+)\]?\s*\.\s*)?\[?([A-Za-z0-9_]+)\]?",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex FuncCallRegex = new Regex(
+            @"(?:\[?[A-Za-z0-9_]+\]?\s*\.\s*)\[?([A-Za-z0-9_]+)\]?\s*\(",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Fast lookup dictionary: lower-case word -> (Category, Canonical PascalCase)
         private readonly Dictionary<string, (SqlWordCategory Category, string CanonicalPascalCase)> _tokenDictionary =
@@ -42,6 +57,14 @@ namespace LumiSqlFormatter.Services
             {
                 category = info.Category;
                 canonicalPascalCase = info.CanonicalPascalCase;
+                return true;
+            }
+
+            // Check dynamic Database Metadata Cache (Stored Procedures & Functions from active database)
+            if (DatabaseMetadataCacheService.Instance.TryGetCanonicalName(word, out string dbCanonicalName))
+            {
+                category = SqlWordCategory.SystemProcedureOrFunction;
+                canonicalPascalCase = dbCanonicalName;
                 return true;
             }
 
@@ -74,6 +97,13 @@ namespace LumiSqlFormatter.Services
 
             if (TryGetWordInfo(word, out var category, out var canonicalPascalCase))
             {
+                if (category == SqlWordCategory.SystemProcedureOrFunction)
+                {
+                    // System procedures and functions strictly retain their canonical definition format
+                    formattedWord = canonicalPascalCase;
+                    return !string.Equals(word, formattedWord, StringComparison.Ordinal);
+                }
+
                 CasingStyle targetStyle;
                 switch (category)
                 {
@@ -269,17 +299,178 @@ namespace LumiSqlFormatter.Services
         }
 
         /// <summary>
+        /// Strips single-line and multi-line comments as well as string literals by replacing
+        /// their contents with spaces, preserving offsets and structure for regex scanning.
+        /// </summary>
+        private static string StripCommentsAndLiterals(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            char[] chars = text.ToCharArray();
+            int n = chars.Length;
+            int i = 0;
+
+            while (i < n)
+            {
+                // 1. Single-line comment: --
+                if (chars[i] == '-' && i + 1 < n && chars[i + 1] == '-')
+                {
+                    chars[i] = ' ';
+                    chars[i + 1] = ' ';
+                    i += 2;
+                    while (i < n && chars[i] != '\r' && chars[i] != '\n')
+                    {
+                        chars[i] = ' ';
+                        i++;
+                    }
+                    continue;
+                }
+
+                // 2. Multi-line comment: /* ... */
+                if (chars[i] == '/' && i + 1 < n && chars[i + 1] == '*')
+                {
+                    chars[i] = ' ';
+                    chars[i + 1] = ' ';
+                    i += 2;
+                    int depth = 1;
+                    while (i < n && depth > 0)
+                    {
+                        if (chars[i] == '/' && i + 1 < n && chars[i + 1] == '*')
+                        {
+                            chars[i] = ' ';
+                            chars[i + 1] = ' ';
+                            depth++;
+                            i += 2;
+                        }
+                        else if (chars[i] == '*' && i + 1 < n && chars[i + 1] == '/')
+                        {
+                            chars[i] = ' ';
+                            chars[i + 1] = ' ';
+                            depth--;
+                            i += 2;
+                        }
+                        else
+                        {
+                            if (chars[i] != '\r' && chars[i] != '\n')
+                                chars[i] = ' ';
+                            i++;
+                        }
+                    }
+                    continue;
+                }
+
+                // 3. String literal: '...' or N'...'
+                if (chars[i] == '\'' || ((chars[i] == 'N' || chars[i] == 'n') && i + 1 < n && chars[i + 1] == '\''))
+                {
+                    if (chars[i] == 'N' || chars[i] == 'n')
+                    {
+                        chars[i] = ' ';
+                        i++;
+                    }
+                    chars[i] = ' ';
+                    i++;
+                    while (i < n)
+                    {
+                        if (chars[i] == '\'')
+                        {
+                            chars[i] = ' ';
+                            i++;
+                            if (i < n && chars[i] == '\'')
+                            {
+                                chars[i] = ' ';
+                                i++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            if (chars[i] != '\r' && chars[i] != '\n')
+                                chars[i] = ' ';
+                            i++;
+                        }
+                    }
+                    continue;
+                }
+
+                i++;
+            }
+
+            return new string(chars);
+        }
+
+        /// <summary>
+        /// Scans a SQL script for user-defined and referenced stored procedures and functions.
+        /// Extracts their declared or referenced names to preserve exact casing during batch formatting.
+        /// </summary>
+        public Dictionary<string, string> ScanProceduresAndFunctions(string text)
+        {
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(text))
+                return dict;
+
+            string cleanText = StripCommentsAndLiterals(text);
+
+            // 1. Scan procedure / function declarations: CREATE / ALTER [PROCEDURE|PROC|FUNCTION] [schema.]name
+            foreach (Match m in ProcFuncDefRegex.Matches(cleanText))
+            {
+                if (m.Groups.Count > 2 && !string.IsNullOrEmpty(m.Groups[2].Value))
+                {
+                    string name = m.Groups[2].Value;
+                    dict[name] = name; // Definition has highest priority
+                }
+            }
+
+            // 2. Scan EXEC / EXECUTE calls
+            foreach (Match m in ExecRegex.Matches(cleanText))
+            {
+                if (m.Groups.Count > 2 && !string.IsNullOrEmpty(m.Groups[2].Value))
+                {
+                    string name = m.Groups[2].Value;
+                    if (!dict.ContainsKey(name))
+                    {
+                        dict[name] = name;
+                    }
+                }
+            }
+
+            // 3. Scan schema-qualified function calls: [schema].[function_name](...)
+            foreach (Match m in FuncCallRegex.Matches(cleanText))
+            {
+                if (m.Groups.Count > 1 && !string.IsNullOrEmpty(m.Groups[1].Value))
+                {
+                    string name = m.Groups[1].Value;
+                    if (!dict.ContainsKey(name))
+                    {
+                        dict[name] = name;
+                    }
+                }
+            }
+
+            return dict;
+        }
+
+        /// <summary>
         /// Performs batch formatting on an entire SQL script or selected text span:
         /// - UppercaseKeywords: converts all reserved keywords, data types, and built-in functions to UPPERCASE,
-        ///   while preserving comments, string literals, bracketed identifiers, user variables, and temp tables.
+        ///   while preserving comments, string literals, bracketed identifiers, user variables, temp tables,
+        ///   and system/declared stored procedures and functions.
         /// - LowercaseAllExceptPreserved: converts all code text to lowercase,
         ///   while preserving comments, string literals, bracketed identifiers, user variables (@variables, table variables),
-        ///   and temp tables (#temp, ##temp).
+        ///   temp tables (#temp, ##temp), and system/declared stored procedures and functions.
         /// </summary>
         public string FormatBatch(string text, BatchFormatMode mode)
         {
             if (string.IsNullOrEmpty(text))
                 return text;
+
+            // Trigger background database change detection and re-cache if needed
+            _ = DatabaseMetadataCacheService.Instance.CheckAndRefreshIfDatabaseChangedAsync();
+
+            var scannedProcs = ScanProceduresAndFunctions(text);
 
             int n = text.Length;
             var sb = new System.Text.StringBuilder(n);
@@ -485,9 +676,41 @@ namespace LumiSqlFormatter.Services
                     }
                     string word = text.Substring(start, i - start);
 
+                    // 8.1 Check pre-loaded system procedure or function (canonical format from system)
+                    if (TryGetWordInfo(word, out var category, out var canonicalName) && category == SqlWordCategory.SystemProcedureOrFunction)
+                    {
+                        sb.Append(canonicalName);
+                        continue;
+                    }
+
+                    // 8.2 Check database metadata cache (Stored Procedures & Functions from current database)
+                    if (DatabaseMetadataCacheService.Instance.TryGetCanonicalName(word, out var dbCanonicalName))
+                    {
+                        sb.Append(dbCanonicalName);
+                        continue;
+                    }
+
+                    // 8.3 Check scanned procedure or function defined/called in script (preserve declared format)
+                    if (scannedProcs.TryGetValue(word, out var declaredName))
+                    {
+                        sb.Append(declaredName);
+                        continue;
+                    }
+
+                    // 8.4 Check general system procedure/function naming convention (sp_*, xp_*, fn_*)
+                    if (word.StartsWith("sp_", StringComparison.OrdinalIgnoreCase) ||
+                        word.StartsWith("xp_", StringComparison.OrdinalIgnoreCase) ||
+                        word.StartsWith("fn_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sb.Append(word);
+                        continue;
+                    }
+
                     if (mode == BatchFormatMode.UppercaseKeywords)
                     {
-                        if (TryGetWordInfo(word, out var category, out _) && category != SqlWordCategory.None)
+                        if (category == SqlWordCategory.ReservedKeyword ||
+                            category == SqlWordCategory.DataType ||
+                            category == SqlWordCategory.BuiltInFunction)
                         {
                             sb.Append(word.ToUpperInvariant());
                         }
@@ -1124,6 +1347,71 @@ namespace LumiSqlFormatter.Services
                 {
                     _tokenDictionary[fn.word] = (SqlWordCategory.BuiltInFunction, fn.pascal);
                 }
+            }
+
+            // 4. PRE-LOADED SYSTEM STORED PROCEDURES & SYSTEM FUNCTIONS (sp_*, xp_*, fn_*)
+            // Preserves standard canonical SQL Server system definitions without altering casing
+            var systemProcsAndFuncs = new[]
+            {
+                // Standard System Stored Procedures
+                "sp_executesql", "sp_send_dbmail", "sp_help", "sp_helptext", "sp_who", "sp_who2",
+                "sp_spaceused", "sp_updatestats", "sp_rename", "sp_recompile", "sp_refreshview",
+                "sp_refreshtrigger", "sp_refreshsqlmodule", "sp_depends", "sp_tables", "sp_columns",
+                "sp_fkeys", "sp_pkeys", "sp_statistics", "sp_server_info", "sp_databases",
+                "sp_datatype_info", "sp_special_columns", "sp_sproc_columns", "sp_stored_procedures",
+                "sp_table_privileges", "sp_column_privileges", "sp_addextendedproperty",
+                "sp_updateextendedproperty", "sp_dropextendedproperty", "sp_configure",
+                "sp_msforeachtable", "sp_msforeachdb", "sp_add_job", "sp_add_jobstep",
+                "sp_add_jobserver", "sp_add_jobschedule", "sp_delete_job", "sp_delete_jobstep",
+                "sp_delete_jobserver", "sp_delete_jobschedule", "sp_start_job", "sp_stop_job",
+                "sp_reset_connection", "sp_attach_db", "sp_detach_db", "sp_attach_single_file_db",
+                "sp_cycle_errorlog", "sp_autostats", "sp_clean_db_file_free_space", "sp_clean_db_free_space",
+                "sp_create_plan_guide", "sp_control_plan_guide", "sp_control_dbmasterkey_password",
+                "sp_change_users_login", "sp_changeobjectowner", "sp_changedbowner", "sp_grantlogin",
+                "sp_revokelogin", "sp_denylogin", "sp_defaultdb", "sp_defaultlanguage", "sp_addlogin",
+                "sp_droplogin", "sp_addrole", "sp_droprole", "sp_addrolemember", "sp_droprolemember",
+                "sp_addsrvrolemember", "sp_dropsrvrolemember", "sp_addapprole", "sp_setapprole",
+                "sp_dropapprole", "sp_approlepassword", "sp_helpuser", "sp_helprole", "sp_helprolemember",
+                "sp_helpsrvrole", "sp_helpsrvrolemember", "sp_helplogins", "sp_helpdb", "sp_helpfile",
+                "sp_helpfilegroup", "sp_helpindex", "sp_helpconstraint", "sp_helptrigger", "sp_helpstats",
+                "sp_xml_preparedocument", "sp_xml_removedocument", "sp_cursoropen", "sp_cursorclose",
+                "sp_cursorfetch", "sp_cursor", "sp_cursoroption", "sp_cursorexecute", "sp_cursorprepare",
+                "sp_cursorunprepare", "sp_prepare", "sp_execute", "sp_unprepare", "sp_trace_create",
+                "sp_trace_setevent", "sp_trace_setfilter", "sp_trace_setstatus", "sp_trace_generateevent",
+                "sp_fulltext_database", "sp_fulltext_catalog", "sp_fulltext_table", "sp_fulltext_column",
+                "sp_fulltext_service", "sp_indexoption", "sp_tableoption", "sp_bindrule", "sp_unbindrule",
+                "sp_binddefault", "sp_unbinddefault", "sp_resync_targetserver", "sp_post_msx_hook",
+                "sp_grant_login_to_subsystem", "sp_revoke_login_from_subsystem", "sp_verify_job_identifiers",
+                "sp_manage_jobs_by_login", "sp_help_job", "sp_help_jobstep", "sp_help_jobserver",
+                "sp_help_jobschedule", "sp_help_jobhistory", "sp_help_jobactivity", "sp_help_alert",
+                "sp_help_notification", "sp_help_operator", "sp_help_targetserver", "sp_help_targetservergroup",
+                "sp_add_alert", "sp_delete_alert", "sp_update_alert", "sp_add_notification",
+                "sp_delete_notification", "sp_update_notification", "sp_add_operator", "sp_delete_operator",
+                "sp_update_operator", "sp_add_category", "sp_delete_category", "sp_update_category",
+                "sp_add_targetservergroup", "sp_delete_targetservergroup", "sp_add_targetsvr_to_multiserver",
+                "sp_delete_targetserver",
+
+                // Extended Stored Procedures
+                "xp_cmdshell", "xp_fixeddrives", "xp_fileexist", "xp_dirtree", "xp_subdirs",
+                "xp_logininfo", "xp_readerrorlog", "xp_enumerrorlogs", "xp_instance_regread",
+                "xp_instance_regwrite", "xp_regread", "xp_regwrite", "xp_regdeletevalue",
+                "xp_regdeletekey", "xp_ss_sendmail", "xp_sprintf", "xp_msver", "xp_logevent",
+                "xp_sqlagent_notify", "xp_sqlagent_enum_jobs", "xp_sqlagent_is_starting", "xp_qv",
+
+                // System Functions
+                "fn_my_permissions", "fn_virtualfilestats", "fn_trace_gettable", "fn_trace_getinfo",
+                "fn_trace_geteventinfo", "fn_trace_getfilterinfo", "fn_dblog", "fn_dump_dblog",
+                "fn_get_sql", "fn_listextendedproperty", "fn_servershareddrives", "fn_helpcollations",
+                "fn_validate_plan_guide", "fn_get_audit_file", "fn_cdc_get_all_changes",
+                "fn_cdc_get_net_changes", "fn_cdc_map_lsn_to_time", "fn_cdc_map_time_to_lsn",
+                "fn_cdc_get_min_lsn", "fn_cdc_get_max_lsn", "fn_cdc_increment_lsn",
+                "fn_cdc_decrement_lsn", "fn_cdc_is_bit_set", "fn_cdc_has_column_changed",
+                "fn_syscollector_get_package_parameters"
+            };
+
+            foreach (var proc in systemProcsAndFuncs)
+            {
+                _tokenDictionary[proc] = (SqlWordCategory.SystemProcedureOrFunction, proc);
             }
         }
     }

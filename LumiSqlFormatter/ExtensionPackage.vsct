@@ -16,6 +16,21 @@
     </Menus>
 
     <Groups>
+      <!-- SSMS SQL Query Window Context Menu Group (0x0050) -->
+      <Group guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" priority="0x0205">
+        <Parent guid="guidSsmsQueryWindowCmdSet" id="menuidSsmsQueryWindowContextMenu" />
+      </Group>
+
+      <!-- SSMS SQL Query Window Context Menu Group 2 (0x00F0) -->
+      <Group guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup2" priority="0x0205">
+        <Parent guid="guidSsmsQueryWindowCmdSet" id="menuidSsmsQueryWindowContextMenu2" />
+      </Group>
+
+      <!-- Standard Code Window Context Menu Group (IDM_VS_CTXT_CODEWIN) -->
+      <Group guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" priority="0x0200">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+
       <!-- Formatting Commands Group inside Top Level Menu -->
       <Group guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" priority="0x0100">
         <Parent guid="guidLumiSqlCmdSet" id="TopLevelMenu"/>
@@ -30,25 +45,30 @@
       <Group guid="guidLumiSqlCmdSet" id="ToolsMenuGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
       </Group>
-
-      <!-- Editor Context Menu Group (Right-Click in Query Editor) -->
-      <Group guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" priority="0x0200">
-        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
-      </Group>
     </Groups>
 
     <Buttons>
       <Button guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100" type="Button">
-        <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+        <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Lumi Format Uppercase</ButtonText>
+          <ButtonText>Lumi Format Uppercase (Ctrl+Alt+U)</ButtonText>
         </Strings>
       </Button>
 
       <Button guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110" type="Button">
-        <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+        <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Lumi Format Lowercase</ButtonText>
+          <ButtonText>Lumi Format Lowercase (Ctrl+Alt+L)</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" priority="0x0120" type="Button">
+        <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Lumi: Refresh Database Objects Cache (Ctrl+Shift+R)</ButtonText>
         </Strings>
       </Button>
 
@@ -62,11 +82,36 @@
   </Commands>
 
   <CommandPlacements>
+    <!-- Place Format commands in SSMS Query Window Context Menu Group 2 (0x00F0) -->
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100">
+      <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup2" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110">
+      <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup2" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" priority="0x0120">
+      <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup2" />
+    </CommandPlacement>
+
+    <!-- Also place Format commands in Standard Editor Context Menu (IDM_VS_CTXT_CODEWIN) -->
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100">
+      <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110">
+      <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" priority="0x0120">
+      <Parent guid="guidLumiSqlCmdSet" id="EditorContextMenuGroup" />
+    </CommandPlacement>
+
     <!-- Place Format commands in Top Level Menu as well -->
     <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" priority="0x0100">
       <Parent guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" />
     </CommandPlacement>
     <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" priority="0x0110">
+      <Parent guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" priority="0x0120">
       <Parent guid="guidLumiSqlCmdSet" id="TopLevelFormatMenuGroup" />
     </CommandPlacement>
 
@@ -79,6 +124,7 @@
   <KeyBindings>
     <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" editor="guidVSStd97" key1="U" mod1="Control Alt"/>
     <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" editor="guidVSStd97" key1="L" mod1="Control Alt"/>
+    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" editor="guidVSStd97" key1="R" mod1="Control Shift"/>
   </KeyBindings>
 
   <Symbols>
@@ -89,10 +135,19 @@
       <IDSymbol name="TopLevelFormatMenuGroup" value="0x1025" />
       <IDSymbol name="TopLevelMenuGroup" value="0x1030" />
       <IDSymbol name="ToolsMenuGroup" value="0x1040" />
+      <IDSymbol name="SsmsEditorContextMenuGroup" value="0x1045" />
+      <IDSymbol name="SsmsEditorContextMenuGroup2" value="0x1046" />
       <IDSymbol name="EditorContextMenuGroup" value="0x1050" />
       <IDSymbol name="cmdidOpenSettings" value="0x0100" />
       <IDSymbol name="cmdidFormatUppercase" value="0x0110" />
       <IDSymbol name="cmdidFormatLowercase" value="0x0120" />
+      <IDSymbol name="cmdidRefreshDbCache" value="0x0130" />
+    </GuidSymbol>
+
+    <!-- SSMS SQL Query Window Context Command Set -->
+    <GuidSymbol name="guidSsmsQueryWindowCmdSet" value="{33F13AC3-80BB-4ECB-85BC-225435603A5E}">
+      <IDSymbol name="menuidSsmsQueryWindowContextMenu" value="0x0050" />
+      <IDSymbol name="menuidSsmsQueryWindowContextMenu2" value="0x00F0" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

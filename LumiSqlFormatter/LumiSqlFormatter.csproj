@@ -80,6 +80,7 @@
     <Compile Include="Models\FormatterSettings.cs" />
     <Compile Include="Models\SnippetItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\DatabaseMetadataCacheService.cs" />
     <Compile Include="Services\SettingsService.cs" />
     <Compile Include="Services\ShortcutHelper.cs" />
     <Compile Include="Services\SnippetService.cs" />

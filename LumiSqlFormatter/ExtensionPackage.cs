@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.TextManager.Interop;
 using Task = System.Threading.Tasks.Task;
 using LumiSqlFormatter.Editor;
 using LumiSqlFormatter.Models;
+using LumiSqlFormatter.Services;
 using LumiSqlFormatter.UI;
 
 namespace LumiSqlFormatter
@@ -21,6 +22,8 @@ namespace LumiSqlFormatter
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.ShellInitialized_string, PackageAutoLoadFlags.BackgroundLoad)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.CodeWindow_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
     [ProvideToolWindow(typeof(SettingsToolWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow)]
     [ProvideOptionPage(typeof(OptionsPage), "Lumi SQL Formatter", "General", 0, 0, true)]
     [Guid(GuidList.guidLumiSqlPackageString)]
@@ -50,6 +53,12 @@ namespace LumiSqlFormatter
                 var lowerItem = new OleMenuCommand(OnExecuteFormatLowercase, lowerCmdID);
                 lowerItem.BeforeQueryStatus += OnBeforeQueryStatusFormatCommand;
                 commandService.AddCommand(lowerItem);
+
+                // Refresh Database Objects Cache command
+                var refreshCmdID = new CommandID(GuidList.guidLumiSqlCmdSet, (int)PkgCmdIDList.cmdidRefreshDbCache);
+                var refreshItem = new OleMenuCommand(OnExecuteRefreshDbCache, refreshCmdID);
+                refreshItem.BeforeQueryStatus += OnBeforeQueryStatusFormatCommand;
+                commandService.AddCommand(refreshItem);
             }
         }
 
@@ -58,8 +67,27 @@ namespace LumiSqlFormatter
             ThreadHelper.ThrowIfNotOnUIThread();
             if (sender is OleMenuCommand menuCommand)
             {
+                menuCommand.Supported = true;
                 menuCommand.Visible = true;
                 menuCommand.Enabled = true;
+
+                var settings = SettingsService.Instance.Settings;
+                int cmdId = menuCommand.CommandID.ID;
+                if (cmdId == (int)PkgCmdIDList.cmdidFormatUppercase)
+                {
+                    string sc = !string.IsNullOrWhiteSpace(settings?.FormatUppercaseShortcut) ? $" ({settings.FormatUppercaseShortcut})" : "";
+                    menuCommand.Text = $"Lumi Format Uppercase{sc}";
+                }
+                else if (cmdId == (int)PkgCmdIDList.cmdidFormatLowercase)
+                {
+                    string sc = !string.IsNullOrWhiteSpace(settings?.FormatLowercaseShortcut) ? $" ({settings.FormatLowercaseShortcut})" : "";
+                    menuCommand.Text = $"Lumi Format Lowercase{sc}";
+                }
+                else if (cmdId == (int)PkgCmdIDList.cmdidRefreshDbCache)
+                {
+                    string sc = !string.IsNullOrWhiteSpace(settings?.RefreshDbCacheShortcut) ? $" ({settings.RefreshDbCacheShortcut})" : "";
+                    menuCommand.Text = $"Lumi: Refresh Database Objects Cache{sc}";
+                }
             }
         }
 
@@ -73,6 +101,12 @@ namespace LumiSqlFormatter
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             ExecuteFormatCommand(BatchFormatMode.LowercaseAllExceptPreserved);
+        }
+
+        private void OnExecuteRefreshDbCache(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            _ = DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);
         }
 
         private void ExecuteFormatCommand(BatchFormatMode mode)

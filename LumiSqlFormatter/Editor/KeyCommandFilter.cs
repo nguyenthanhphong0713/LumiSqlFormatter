@@ -108,7 +108,9 @@ namespace LumiSqlFormatter.Editor
                 if (prgCmds != null && cCmds > 0)
                 {
                     uint cmdId = prgCmds[0].cmdID;
-                    if (cmdId == PkgCmdIDList.cmdidFormatUppercase || cmdId == PkgCmdIDList.cmdidFormatLowercase)
+                    if (cmdId == PkgCmdIDList.cmdidFormatUppercase || 
+                        cmdId == PkgCmdIDList.cmdidFormatLowercase ||
+                        cmdId == PkgCmdIDList.cmdidRefreshDbCache)
                     {
                         prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
                         return VSConstants.S_OK;
@@ -141,6 +143,11 @@ namespace LumiSqlFormatter.Editor
                     FormatTextView(_textView, BatchFormatMode.LowercaseAllExceptPreserved);
                     return VSConstants.S_OK;
                 }
+                if (nCmdID == PkgCmdIDList.cmdidRefreshDbCache)
+                {
+                    _ = DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);
+                    return VSConstants.S_OK;
+                }
             }
 
             // Check for configured Format Uppercase shortcut
@@ -154,6 +161,13 @@ namespace LumiSqlFormatter.Editor
             if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.FormatLowercaseShortcut))
             {
                 FormatTextView(_textView, BatchFormatMode.LowercaseAllExceptPreserved);
+                return VSConstants.S_OK;
+            }
+
+            // Check for configured Refresh Database Objects Cache shortcut (default: Ctrl+Shift+R)
+            if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.RefreshDbCacheShortcut))
+            {
+                _ = DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);
                 return VSConstants.S_OK;
             }
 
