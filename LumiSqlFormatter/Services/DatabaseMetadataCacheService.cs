@@ -132,7 +132,7 @@ namespace LumiSqlFormatter.Services
 
         /// <summary>
         /// Performs manual or automatic refresh of the database objects cache.
-        /// Queries sys.all_objects / sys.objects in background without blocking the UI.
+        /// Queries sys.objects in background without blocking the UI.
         /// </summary>
         public async Task RefreshCacheAsync(bool isManualTrigger = false)
         {
@@ -219,25 +219,49 @@ namespace LumiSqlFormatter.Services
                     // Change database if needed
                     if (!string.IsNullOrEmpty(connInfo.Database))
                     {
-                        var curDbProp = serverConn.GetType().GetProperty("CurrentDatabase", BindingFlags.Public | BindingFlags.Instance) ??
-                                        serverConn.GetType().GetProperty("DatabaseName", BindingFlags.Public | BindingFlags.Instance);
-                        string curDb = curDbProp?.GetValue(serverConn) as string;
-                        if (!string.IsNullOrEmpty(curDb) && !string.Equals(curDb, connInfo.Database, StringComparison.OrdinalIgnoreCase))
+                        try
                         {
                             var changeDbMethod = serverConn.GetType().GetMethod("ChangeDatabase", new[] { typeof(string) });
                             changeDbMethod?.Invoke(serverConn, new object[] { connInfo.Database });
                         }
+                        catch { }
                     }
 
                     // Execute query via ExecuteWithResults or ExecuteReader
                     var execMethod = serverConn.GetType().GetMethod("ExecuteWithResults", new[] { typeof(string) });
                     if (execMethod != null)
                     {
-                        string query = @"SELECT name FROM sys.all_objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X')";
-                        var ds = execMethod.Invoke(serverConn, new object[] { query }) as DataSet;
+                        string script = !string.IsNullOrEmpty(connInfo.Database)
+                            ? $"USE [{connInfo.Database.Replace("]", "]]")}]; SELECT DB_NAME(); SELECT name FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X');"
+                            : "SELECT DB_NAME(); SELECT name FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X');";
+
+                        var ds = execMethod.Invoke(serverConn, new object[] { script }) as DataSet;
                         if (ds != null && ds.Tables.Count > 0)
                         {
-                            foreach (DataRow row in ds.Tables[0].Rows)
+                            DataTable objTable = ds.Tables[0];
+                            if (ds.Tables.Count > 1)
+                            {
+                                if (ds.Tables[0].Rows.Count > 0 && !ds.Tables[0].Rows[0].IsNull(0))
+                                {
+                                    string resolvedDb = ds.Tables[0].Rows[0][0].ToString();
+                                    if (!string.IsNullOrEmpty(resolvedDb))
+                                    {
+                                        connInfo.Database = resolvedDb;
+                                    }
+                                }
+                                objTable = ds.Tables[1];
+                            }
+                            else if (ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Columns.Count == 1 &&
+                                     !ds.Tables[0].Columns[0].ColumnName.Equals("name", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string resolvedDb = ds.Tables[0].Rows[0][0].ToString();
+                                if (!string.IsNullOrEmpty(resolvedDb))
+                                {
+                                    connInfo.Database = resolvedDb;
+                                }
+                            }
+
+                            foreach (DataRow row in objTable.Rows)
                             {
                                 if (!row.IsNull(0))
                                 {
@@ -276,16 +300,15 @@ namespace LumiSqlFormatter.Services
                         connInfo.ActiveConnection.Open();
                     }
 
-                    if (!string.IsNullOrEmpty(connInfo.Database) &&
-                        !string.Equals(connInfo.ActiveConnection.Database, connInfo.Database, StringComparison.OrdinalIgnoreCase))
-                    {
-                        try { connInfo.ActiveConnection.ChangeDatabase(connInfo.Database); } catch { }
-                    }
-
-                    ExecuteMetadataQuery(connInfo.ActiveConnection, newCache);
+                    string resolvedDb = connInfo.Database;
+                    ExecuteMetadataQuery(connInfo.ActiveConnection, newCache, ref resolvedDb);
                     querySuccess = true;
 
-                    if (string.IsNullOrEmpty(connInfo.Database))
+                    if (!string.IsNullOrEmpty(resolvedDb))
+                    {
+                        connInfo.Database = resolvedDb;
+                    }
+                    else if (string.IsNullOrEmpty(connInfo.Database))
                     {
                         connInfo.Database = connInfo.ActiveConnection.Database;
                     }
@@ -317,16 +340,15 @@ namespace LumiSqlFormatter.Services
                         using (var mdsConn = (IDbConnection)Activator.CreateInstance(mdsConnType, connInfo.ConnectionString))
                         {
                             mdsConn.Open();
-                            if (!string.IsNullOrEmpty(connInfo.Database) &&
-                                !string.Equals(mdsConn.Database, connInfo.Database, StringComparison.OrdinalIgnoreCase))
-                            {
-                                try { mdsConn.ChangeDatabase(connInfo.Database); } catch { }
-                            }
-
-                            ExecuteMetadataQuery(mdsConn, newCache);
+                            string resolvedDb = connInfo.Database;
+                            ExecuteMetadataQuery(mdsConn, newCache, ref resolvedDb);
                             querySuccess = true;
 
-                            if (string.IsNullOrEmpty(connInfo.Database))
+                            if (!string.IsNullOrEmpty(resolvedDb))
+                            {
+                                connInfo.Database = resolvedDb;
+                            }
+                            else if (string.IsNullOrEmpty(connInfo.Database))
                             {
                                 connInfo.Database = mdsConn.Database;
                             }
@@ -347,16 +369,15 @@ namespace LumiSqlFormatter.Services
                     using (var sqlConn = new System.Data.SqlClient.SqlConnection(connInfo.ConnectionString))
                     {
                         sqlConn.Open();
-                        if (!string.IsNullOrEmpty(connInfo.Database) &&
-                            !string.Equals(sqlConn.Database, connInfo.Database, StringComparison.OrdinalIgnoreCase))
-                        {
-                            try { sqlConn.ChangeDatabase(connInfo.Database); } catch { }
-                        }
-
-                        ExecuteMetadataQuery(sqlConn, newCache);
+                        string resolvedDb = connInfo.Database;
+                        ExecuteMetadataQuery(sqlConn, newCache, ref resolvedDb);
                         querySuccess = true;
 
-                        if (string.IsNullOrEmpty(connInfo.Database))
+                        if (!string.IsNullOrEmpty(resolvedDb))
+                        {
+                            connInfo.Database = resolvedDb;
+                        }
+                        else if (string.IsNullOrEmpty(connInfo.Database))
                         {
                             connInfo.Database = sqlConn.Database;
                         }
@@ -375,16 +396,15 @@ namespace LumiSqlFormatter.Services
                             using (var sqlConn = new System.Data.SqlClient.SqlConnection(fallbackConnStr))
                             {
                                 sqlConn.Open();
-                                if (!string.IsNullOrEmpty(connInfo.Database) &&
-                                    !string.Equals(sqlConn.Database, connInfo.Database, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    try { sqlConn.ChangeDatabase(connInfo.Database); } catch { }
-                                }
-
-                                ExecuteMetadataQuery(sqlConn, newCache);
+                                string resolvedDb = connInfo.Database;
+                                ExecuteMetadataQuery(sqlConn, newCache, ref resolvedDb);
                                 querySuccess = true;
 
-                                if (string.IsNullOrEmpty(connInfo.Database))
+                                if (!string.IsNullOrEmpty(resolvedDb))
+                                {
+                                    connInfo.Database = resolvedDb;
+                                }
+                                else if (string.IsNullOrEmpty(connInfo.Database))
                                 {
                                     connInfo.Database = sqlConn.Database;
                                 }
@@ -423,19 +443,65 @@ namespace LumiSqlFormatter.Services
             }
         }
 
-        private void ExecuteMetadataQuery(IDbConnection conn, Dictionary<string, string> targetDict)
+        private void ExecuteMetadataQuery(IDbConnection conn, Dictionary<string, string> targetDict, ref string databaseName)
         {
-            // Query sys.all_objects first to capture all user objects and system objects in the current database
-            string query = @"
-                SELECT name 
-                FROM sys.all_objects 
-                WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X')";
+            if (!string.IsNullOrEmpty(databaseName))
+            {
+                try
+                {
+                    if (!string.Equals(conn.Database, databaseName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        conn.ChangeDatabase(databaseName);
+                    }
+                }
+                catch { }
+            }
+
+            string script = !string.IsNullOrEmpty(databaseName)
+                ? $"USE [{databaseName.Replace("]", "]]")}]; SELECT DB_NAME(); SELECT name FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X');"
+                : "SELECT DB_NAME(); SELECT name FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X');";
 
             try
             {
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = query;
+                    cmd.CommandText = script;
+                    cmd.CommandTimeout = 15;
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read() && !reader.IsDBNull(0))
+                        {
+                            string resolved = reader.GetString(0);
+                            if (!string.IsNullOrEmpty(resolved))
+                            {
+                                databaseName = resolved;
+                            }
+                        }
+
+                        if (reader.NextResult())
+                        {
+                            while (reader.Read())
+                            {
+                                if (!reader.IsDBNull(0))
+                                {
+                                    string name = reader.GetString(0);
+                                    if (!string.IsNullOrEmpty(name))
+                                    {
+                                        targetDict[name] = name;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback: single statement sys.objects
+                string singleQuery = @"SELECT name FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X')";
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = singleQuery;
                     cmd.CommandTimeout = 15;
                     using (var reader = cmd.ExecuteReader())
                     {
@@ -452,225 +518,63 @@ namespace LumiSqlFormatter.Services
                         }
                     }
                 }
-            }
-            catch
-            {
-                // Fall back to sys.objects in case of restricted permissions
-                string fallbackQuery = @"
-                    SELECT name 
-                    FROM sys.objects 
-                    WHERE type IN ('P', 'PC', 'FN', 'FS', 'FT', 'IF', 'TF', 'AF', 'X')";
 
-                using (var cmd = conn.CreateCommand())
+                if (string.IsNullOrEmpty(databaseName))
                 {
-                    cmd.CommandText = fallbackQuery;
-                    cmd.CommandTimeout = 15;
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            if (!reader.IsDBNull(0))
-                            {
-                                string name = reader.GetString(0);
-                                if (!string.IsNullOrEmpty(name))
-                                {
-                                    targetDict[name] = name;
-                                }
-                            }
-                        }
-                    }
+                    try { databaseName = conn.Database; } catch { }
                 }
             }
         }
 
         /// <summary>
         /// Multi-layer resolver to extract active connection and database from SSMS.
-        /// Layer 1: ServiceCache.ScriptFactory.CurrentlyActiveWndConnectionInfo & UIConnectionInfoUtil
-        /// Layer 2: ISqlEditorService (SSqlEditorService)
+        /// Layer 0: EnvDTE ActiveWindow Caption (extracts active tab's SERVER and Database dynamically)
+        /// Layer 1: ISqlEditorService (SSqlEditorService)
+        /// Layer 2: ServiceCache.ScriptFactory.CurrentlyActiveWndConnectionInfo & UIConnectionInfoUtil
         /// </summary>
         public ConnectionContextInfo ResolveActiveConnectionInfo()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var result = new ConnectionContextInfo();
 
-            // Layer 1: ServiceCache.ScriptFactory.CurrentlyActiveWndConnectionInfo
+            // Layer 0: Extract active editor tab caption via EnvDTE.DTE
+            // SSMS query tab titles dynamically update on database change dropdown:
+            // "SQLQuery1.sql - SERVER.Database (User (spid))"
+            string captionServer = null;
+            string captionDatabase = null;
             try
             {
-                Type serviceCacheType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                var dte = Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
+                if (dte?.ActiveWindow != null)
                 {
-                    serviceCacheType = asm.GetType("Microsoft.SqlServer.Management.UI.VSIntegration.ServiceCache");
-                    if (serviceCacheType != null)
-                        break;
-                }
-
-                if (serviceCacheType != null)
-                {
-                    var sfProp = serviceCacheType.GetProperty("ScriptFactory", BindingFlags.Public | BindingFlags.Static);
-                    var scriptFactory = sfProp?.GetValue(null);
-                    if (scriptFactory != null)
-                    {
-                        var activeConnProp = scriptFactory.GetType().GetProperty("CurrentlyActiveWndConnectionInfo", BindingFlags.Public | BindingFlags.Instance);
-                        var activeConn = activeConnProp?.GetValue(scriptFactory);
-                        if (activeConn != null)
-                        {
-                            var uiConnProp = activeConn.GetType().GetProperty("UIConnectionInfo", BindingFlags.Public | BindingFlags.Instance);
-                            var uiConn = uiConnProp?.GetValue(activeConn);
-                            if (uiConn != null)
-                            {
-                                result.UIConnectionInfo = uiConn;
-
-                                var serverProp = uiConn.GetType().GetProperty("ServerName", BindingFlags.Public | BindingFlags.Instance);
-                                string server = serverProp?.GetValue(uiConn) as string;
-                                if (!string.IsNullOrEmpty(server))
-                                {
-                                    result.Server = server;
-                                }
-
-                                // 1. Try to resolve Database using UIConnectionInfoUtil.GetDatabaseName(uiConn)
-                                string dbName = null;
-                                Type uiConnUtilType = null;
-                                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                                {
-                                    uiConnUtilType = asm.GetType("Microsoft.SqlServer.Management.UI.ConnectionDlg.UIConnectionInfoUtil");
-                                    if (uiConnUtilType != null)
-                                        break;
-                                }
-
-                                if (uiConnUtilType != null)
-                                {
-                                    try
-                                    {
-                                        var getDbMethod = uiConnUtilType.GetMethod("GetDatabaseName", new[] { uiConn.GetType() });
-                                        dbName = getDbMethod?.Invoke(null, new object[] { uiConn }) as string;
-                                    }
-                                    catch { }
-                                }
-
-                                // 2. Fall back to AdvancedOptions for Database
-                                if (string.IsNullOrEmpty(dbName))
-                                {
-                                    var advProp = uiConn.GetType().GetProperty("AdvancedOptions", BindingFlags.Public | BindingFlags.Instance);
-                                    var advOptions = advProp?.GetValue(uiConn) as System.Collections.Specialized.NameValueCollection;
-                                    dbName = advOptions?["DATABASE"] ?? advOptions?["Initial Catalog"];
-                                }
-
-                                if (!string.IsNullOrEmpty(dbName) && !string.Equals(dbName, "<default>", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    result.Database = dbName;
-                                }
-
-                                // 3. Try to get SMO ServerConnection & Core Connection Info via UIConnectionInfoUtil
-                                if (uiConnUtilType != null)
-                                {
-                                    try
-                                    {
-                                        var getCoreMethod = uiConnUtilType.GetMethod("GetCoreConnectionInfo", new[] { uiConn.GetType() });
-                                        var coreConnInfo = getCoreMethod?.Invoke(null, new object[] { uiConn });
-                                        if (coreConnInfo != null)
-                                        {
-                                            var serverConnProp = coreConnInfo.GetType().GetProperty("ServerConnection", BindingFlags.Public | BindingFlags.Instance);
-                                            var serverConn = serverConnProp?.GetValue(coreConnInfo);
-                                            if (serverConn != null)
-                                            {
-                                                result.ServerConnection = serverConn;
-                                            }
-
-                                            // Check database name from core connection info if not set
-                                            if (string.IsNullOrEmpty(result.Database))
-                                            {
-                                                var coreDbProp = coreConnInfo.GetType().GetProperty("DatabaseName", BindingFlags.Public | BindingFlags.Instance);
-                                                string coreDb = coreDbProp?.GetValue(coreConnInfo) as string;
-                                                if (!string.IsNullOrEmpty(coreDb) && !string.Equals(coreDb, "<default>", StringComparison.OrdinalIgnoreCase))
-                                                {
-                                                    result.Database = coreDb;
-                                                }
-                                            }
-
-                                            // Check CreateConnectionObject
-                                            try
-                                            {
-                                                var createConnMethod = coreConnInfo.GetType().GetMethod("CreateConnectionObject", Type.EmptyTypes);
-                                                var createdDbConn = createConnMethod?.Invoke(coreConnInfo, null) as IDbConnection;
-                                                if (createdDbConn != null)
-                                                {
-                                                    result.ActiveConnection = createdDbConn;
-                                                }
-                                            }
-                                            catch { }
-                                        }
-                                    }
-                                    catch { }
-                                }
-
-                                // 4. Build connection string with full credential extraction (handling InMemoryPassword)
-                                if (!string.IsNullOrEmpty(server))
-                                {
-                                    var authTypeProp = uiConn.GetType().GetProperty("AuthenticationType", BindingFlags.Public | BindingFlags.Instance);
-                                    int authType = authTypeProp != null ? (int)authTypeProp.GetValue(uiConn) : 0;
-
-                                    var userProp = uiConn.GetType().GetProperty("UserName", BindingFlags.Public | BindingFlags.Instance);
-                                    string userName = userProp?.GetValue(uiConn) as string;
-
-                                    string password = null;
-                                    var passProp = uiConn.GetType().GetProperty("Password", BindingFlags.Public | BindingFlags.Instance);
-                                    password = passProp?.GetValue(uiConn) as string;
-
-                                    // If password is empty (normal for SSMS SQL Auth), decrypt InMemoryPassword
-                                    if (string.IsNullOrEmpty(password))
-                                    {
-                                        var inMemProp = uiConn.GetType().GetProperty("InMemoryPassword", BindingFlags.Public | BindingFlags.Instance);
-                                        var secPass = inMemProp?.GetValue(uiConn) as SecureString;
-                                        if (secPass != null && secPass.Length > 0)
-                                        {
-                                            IntPtr bstr = Marshal.SecureStringToBSTR(secPass);
-                                            try
-                                            {
-                                                password = Marshal.PtrToStringBSTR(bstr);
-                                            }
-                                            finally
-                                            {
-                                                Marshal.ZeroFreeBSTR(bstr);
-                                            }
-                                        }
-                                    }
-
-                                    string dbSegment = !string.IsNullOrEmpty(result.Database) ? $"Database={result.Database};" : "";
-
-                                    if (authType == 0) // Windows Authentication
-                                    {
-                                        result.ConnectionString = $"Data Source={server};{dbSegment}Integrated Security=True;TrustServerCertificate=True;";
-                                    }
-                                    else if (authType == 1 && !string.IsNullOrEmpty(userName)) // SQL Server Authentication
-                                    {
-                                        string passPart = !string.IsNullOrEmpty(password) ? $"Password={password};" : "";
-                                        result.ConnectionString = $"Data Source={server};{dbSegment}User ID={userName};{passPart}TrustServerCertificate=True;";
-                                    }
-                                    else
-                                    {
-                                        // Azure Active Directory / Entra / Others
-                                        result.ConnectionString = $"Data Source={server};{dbSegment}TrustServerCertificate=True;";
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    string caption = dte.ActiveWindow.Caption;
+                    TryParseCaption(caption, out captionServer, out captionDatabase);
                 }
             }
-            catch
+            catch { }
+
+            if (!string.IsNullOrEmpty(captionServer))
             {
-                // Proceed to Layer 2
+                result.Server = captionServer;
+            }
+            if (!string.IsNullOrEmpty(captionDatabase))
+            {
+                result.Database = captionDatabase;
             }
 
-            // Layer 2: Query ISqlEditorService as fallback
+            // Layer 1: Query ISqlEditorService (SSqlEditorService)
             try
             {
                 Type ssqlEditorType = null;
                 foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
                 {
-                    ssqlEditorType = asm.GetType("Microsoft.SqlServer.Management.UI.VSIntegration.SSqlEditorService");
-                    if (ssqlEditorType != null)
-                        break;
+                    if (asm.GetName().Name.StartsWith("Microsoft.SqlServer.Management.SqlStudio", StringComparison.OrdinalIgnoreCase) ||
+                        asm.GetName().Name.StartsWith("SQLEditors", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ssqlEditorType = asm.GetType("Microsoft.SqlServer.Management.UI.VSIntegration.SSqlEditorService");
+                        if (ssqlEditorType != null)
+                            break;
+                    }
                 }
 
                 object editorService = null;
@@ -703,23 +607,228 @@ namespace LumiSqlFormatter.Services
 
                 if (editorService != null)
                 {
-                    var getCurrentConnMethod = editorService.GetType().GetMethod("GetCurrentConnection", BindingFlags.Public | BindingFlags.Instance);
+                    MethodInfo getCurrentConnMethod = null;
+                    foreach (var iface in editorService.GetType().GetInterfaces())
+                    {
+                        if (iface.Name.Contains("ISqlEditorService"))
+                        {
+                            getCurrentConnMethod = iface.GetMethod("GetCurrentConnection");
+                            if (getCurrentConnMethod != null) break;
+                        }
+                    }
+                    if (getCurrentConnMethod == null)
+                    {
+                        foreach (var m in editorService.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                        {
+                            if (m.Name.EndsWith("GetCurrentConnection", StringComparison.OrdinalIgnoreCase) && m.GetParameters().Length == 0)
+                            {
+                                getCurrentConnMethod = m;
+                                break;
+                            }
+                        }
+                    }
+
                     if (getCurrentConnMethod != null)
                     {
                         var activeDbConn = getCurrentConnMethod.Invoke(editorService, null) as IDbConnection;
                         if (activeDbConn != null)
                         {
-                            if (result.ActiveConnection == null)
-                            {
-                                result.ActiveConnection = activeDbConn;
-                            }
-                            if (string.IsNullOrEmpty(result.Database))
+                            result.ActiveConnection = activeDbConn;
+                            if (!string.IsNullOrEmpty(activeDbConn.Database))
                             {
                                 result.Database = activeDbConn.Database;
                             }
-                            if (string.IsNullOrEmpty(result.ConnectionString))
+                            if (!string.IsNullOrEmpty(activeDbConn.ConnectionString))
                             {
                                 result.ConnectionString = activeDbConn.ConnectionString;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Proceed
+            }
+
+            // Layer 2: ServiceCache.ScriptFactory.CurrentlyActiveWndConnectionInfo
+            try
+            {
+                Type serviceCacheType = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    serviceCacheType = asm.GetType("Microsoft.SqlServer.Management.UI.VSIntegration.ServiceCache");
+                    if (serviceCacheType != null)
+                        break;
+                }
+
+                if (serviceCacheType != null)
+                {
+                    var sfProp = serviceCacheType.GetProperty("ScriptFactory", BindingFlags.Public | BindingFlags.Static);
+                    var scriptFactory = sfProp?.GetValue(null);
+                    if (scriptFactory != null)
+                    {
+                        var activeConnProp = scriptFactory.GetType().GetProperty("CurrentlyActiveWndConnectionInfo", BindingFlags.Public | BindingFlags.Instance);
+                        var activeConn = activeConnProp?.GetValue(scriptFactory);
+                        if (activeConn != null)
+                        {
+                            var activeDbProp = activeConn.GetType().GetProperty("Database", BindingFlags.Public | BindingFlags.Instance) ??
+                                               activeConn.GetType().GetProperty("DatabaseName", BindingFlags.Public | BindingFlags.Instance) ??
+                                               activeConn.GetType().GetProperty("CurrentDatabase", BindingFlags.Public | BindingFlags.Instance);
+                            string activeConnDb = activeDbProp?.GetValue(activeConn) as string;
+                            if (!string.IsNullOrEmpty(activeConnDb) && !string.Equals(activeConnDb, "<default>", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (string.IsNullOrEmpty(result.Database))
+                                {
+                                    result.Database = activeConnDb;
+                                }
+                            }
+
+                            var uiConnProp = activeConn.GetType().GetProperty("UIConnectionInfo", BindingFlags.Public | BindingFlags.Instance);
+                            var uiConn = uiConnProp?.GetValue(activeConn);
+                            if (uiConn != null)
+                            {
+                                result.UIConnectionInfo = uiConn;
+
+                                var serverProp = uiConn.GetType().GetProperty("ServerName", BindingFlags.Public | BindingFlags.Instance);
+                                string server = serverProp?.GetValue(uiConn) as string;
+                                if (!string.IsNullOrEmpty(server))
+                                {
+                                    result.Server = server;
+                                }
+
+                                if (string.IsNullOrEmpty(result.Database))
+                                {
+                                    Type uiConnUtilType = null;
+                                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                                    {
+                                        uiConnUtilType = asm.GetType("Microsoft.SqlServer.Management.UI.ConnectionDlg.UIConnectionInfoUtil");
+                                        if (uiConnUtilType != null)
+                                            break;
+                                    }
+
+                                    if (uiConnUtilType != null)
+                                    {
+                                        try
+                                        {
+                                            var getDbMethod = uiConnUtilType.GetMethod("GetDatabaseName", new[] { uiConn.GetType() });
+                                            string dbName = getDbMethod?.Invoke(null, new object[] { uiConn }) as string;
+                                            if (!string.IsNullOrEmpty(dbName) && !string.Equals(dbName, "<default>", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                result.Database = dbName;
+                                            }
+                                        }
+                                        catch { }
+                                    }
+
+                                    if (string.IsNullOrEmpty(result.Database))
+                                    {
+                                        var advProp = uiConn.GetType().GetProperty("AdvancedOptions", BindingFlags.Public | BindingFlags.Instance);
+                                        var advOptions = advProp?.GetValue(uiConn) as System.Collections.Specialized.NameValueCollection;
+                                        string dbName = advOptions?["DATABASE"] ?? advOptions?["Initial Catalog"];
+                                        if (!string.IsNullOrEmpty(dbName) && !string.Equals(dbName, "<default>", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            result.Database = dbName;
+                                        }
+                                    }
+                                }
+
+                                // Try to get SMO ServerConnection & Core Connection Info via UIConnectionInfoUtil
+                                Type utilType = null;
+                                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                                {
+                                    utilType = asm.GetType("Microsoft.SqlServer.Management.UI.ConnectionDlg.UIConnectionInfoUtil");
+                                    if (utilType != null)
+                                        break;
+                                }
+
+                                if (utilType != null)
+                                {
+                                    try
+                                    {
+                                        var getCoreMethod = utilType.GetMethod("GetCoreConnectionInfo", new[] { uiConn.GetType() });
+                                        var coreConnInfo = getCoreMethod?.Invoke(null, new object[] { uiConn });
+                                        if (coreConnInfo != null)
+                                        {
+                                            var serverConnProp = coreConnInfo.GetType().GetProperty("ServerConnection", BindingFlags.Public | BindingFlags.Instance);
+                                            var serverConn = serverConnProp?.GetValue(coreConnInfo);
+                                            if (serverConn != null && result.ServerConnection == null)
+                                            {
+                                                result.ServerConnection = serverConn;
+                                            }
+
+                                            if (string.IsNullOrEmpty(result.Database))
+                                            {
+                                                var coreDbProp = coreConnInfo.GetType().GetProperty("DatabaseName", BindingFlags.Public | BindingFlags.Instance);
+                                                string coreDb = coreDbProp?.GetValue(coreConnInfo) as string;
+                                                if (!string.IsNullOrEmpty(coreDb) && !string.Equals(coreDb, "<default>", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    result.Database = coreDb;
+                                                }
+                                            }
+
+                                            try
+                                            {
+                                                var createConnMethod = coreConnInfo.GetType().GetMethod("CreateConnectionObject", Type.EmptyTypes);
+                                                var createdDbConn = createConnMethod?.Invoke(coreConnInfo, null) as IDbConnection;
+                                                if (createdDbConn != null && result.ActiveConnection == null)
+                                                {
+                                                    result.ActiveConnection = createdDbConn;
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                // Build connection string if not already set by ISqlEditorService
+                                if (string.IsNullOrEmpty(result.ConnectionString) && !string.IsNullOrEmpty(result.Server))
+                                {
+                                    var authTypeProp = uiConn.GetType().GetProperty("AuthenticationType", BindingFlags.Public | BindingFlags.Instance);
+                                    int authType = authTypeProp != null ? (int)authTypeProp.GetValue(uiConn) : 0;
+
+                                    var userProp = uiConn.GetType().GetProperty("UserName", BindingFlags.Public | BindingFlags.Instance);
+                                    string userName = userProp?.GetValue(uiConn) as string;
+
+                                    string password = null;
+                                    var passProp = uiConn.GetType().GetProperty("Password", BindingFlags.Public | BindingFlags.Instance);
+                                    password = passProp?.GetValue(uiConn) as string;
+
+                                    if (string.IsNullOrEmpty(password))
+                                    {
+                                        var inMemProp = uiConn.GetType().GetProperty("InMemoryPassword", BindingFlags.Public | BindingFlags.Instance);
+                                        var secPass = inMemProp?.GetValue(uiConn) as SecureString;
+                                        if (secPass != null && secPass.Length > 0)
+                                        {
+                                            IntPtr bstr = Marshal.SecureStringToBSTR(secPass);
+                                            try
+                                            {
+                                                password = Marshal.PtrToStringBSTR(bstr);
+                                            }
+                                            finally
+                                            {
+                                                Marshal.ZeroFreeBSTR(bstr);
+                                            }
+                                        }
+                                    }
+
+                                    string dbSegment = !string.IsNullOrEmpty(result.Database) ? $"Database={result.Database};" : "";
+
+                                    if (authType == 0) // Windows Authentication
+                                    {
+                                        result.ConnectionString = $"Data Source={result.Server};{dbSegment}Integrated Security=True;TrustServerCertificate=True;";
+                                    }
+                                    else if (authType == 1 && !string.IsNullOrEmpty(userName)) // SQL Server Authentication
+                                    {
+                                        string passPart = !string.IsNullOrEmpty(password) ? $"Password={password};" : "";
+                                        result.ConnectionString = $"Data Source={result.Server};{dbSegment}User ID={userName};{passPart}TrustServerCertificate=True;";
+                                    }
+                                    else
+                                    {
+                                        result.ConnectionString = $"Data Source={result.Server};{dbSegment}TrustServerCertificate=True;";
+                                    }
+                                }
                             }
                         }
                     }
@@ -730,7 +839,55 @@ namespace LumiSqlFormatter.Services
                 // Fall back
             }
 
+            // Fallback: If result.Database was still not resolved, use captionDatabase
+            if (string.IsNullOrEmpty(result.Database) && !string.IsNullOrEmpty(captionDatabase))
+            {
+                result.Database = captionDatabase;
+            }
+            if (string.IsNullOrEmpty(result.Server) && !string.IsNullOrEmpty(captionServer))
+            {
+                result.Server = captionServer;
+            }
+
             return result;
+        }
+
+        public static bool TryParseCaption(string caption, out string server, out string database)
+        {
+            server = null;
+            database = null;
+            if (string.IsNullOrWhiteSpace(caption))
+                return false;
+
+            string clean = caption.Trim();
+            if (clean.EndsWith("*"))
+            {
+                clean = clean.Substring(0, clean.Length - 1).Trim();
+            }
+
+            int dashIdx = clean.LastIndexOf(" - ", StringComparison.Ordinal);
+            if (dashIdx < 0)
+                return false;
+
+            string connPart = clean.Substring(dashIdx + 3).Trim();
+            if (string.IsNullOrEmpty(connPart))
+                return false;
+
+            int parenIdx = connPart.IndexOf('(');
+            if (parenIdx > 0)
+            {
+                connPart = connPart.Substring(0, parenIdx).Trim();
+            }
+
+            int lastDot = connPart.LastIndexOf('.');
+            if (lastDot > 0 && lastDot < connPart.Length - 1)
+            {
+                server = connPart.Substring(0, lastDot).Trim();
+                database = connPart.Substring(lastDot + 1).Trim().Trim('[', ']');
+                return !string.IsNullOrEmpty(database);
+            }
+
+            return false;
         }
 
         private static void ShowStatus(string message)
