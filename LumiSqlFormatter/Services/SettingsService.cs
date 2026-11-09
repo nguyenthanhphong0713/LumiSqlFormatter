@@ -84,6 +84,14 @@ namespace LumiSqlFormatter.Services
                         string json = File.ReadAllText(_settingsFilePath);
                         Settings = JsonConvert.DeserializeObject<FormatterSettings>(json) ?? new FormatterSettings();
 
+                        // Automatically migrate legacy default Ctrl+Shift+R (conflicts with SSMS IntelliSense) to Ctrl+Alt+R
+                        if (string.IsNullOrWhiteSpace(Settings.RefreshDbCacheShortcut) ||
+                            string.Equals(Settings.RefreshDbCacheShortcut, "Ctrl+Shift+R", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Settings.RefreshDbCacheShortcut = "Ctrl+Alt+R";
+                            SaveSettings(Settings);
+                        }
+
                         // Ensure default snippets dir is set if empty
                         if (string.IsNullOrWhiteSpace(Settings.SnippetsDirectoryPath))
                         {

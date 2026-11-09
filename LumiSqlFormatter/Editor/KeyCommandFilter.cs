@@ -280,7 +280,7 @@ namespace LumiSqlFormatter.Editor
                 return VSConstants.S_OK;
             }
 
-            // Check for configured Refresh Database Objects Cache shortcut (default: Ctrl+Shift+R)
+            // Check for configured Refresh Database Objects Cache shortcut (default: Ctrl+Alt+R)
             if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.RefreshDbCacheShortcut))
             {
                 _ = DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);

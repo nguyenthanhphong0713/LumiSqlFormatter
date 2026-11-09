@@ -143,7 +143,7 @@
                                     <TextBox Grid.Column="1" Text="{Binding RefreshDbCacheShortcut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                              PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
                                              Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
-                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Shift+R)"/>
+                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+R)"/>
                                 </Grid>
 
                                 <Grid Margin="0,2,0,2">
@@ -191,7 +191,7 @@
                                 <Button Content="Làm Mới Cache Database" Command="{Binding RefreshDbCacheCommand}"
                                         Height="24" FontWeight="SemiBold" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
                                         BorderBrush="#8E44AD" BorderThickness="1" Cursor="Hand"
-                                        ToolTip="Kết nối lại và quét ngầm toàn bộ metadata mới nhất của database hiện tại (Mặc định: Ctrl+Shift+R)"/>
+                                        ToolTip="Kết nối lại và quét ngầm toàn bộ metadata mới nhất của database hiện tại (Mặc định: Ctrl+Alt+R)"/>
                             </StackPanel>
                         </GroupBox>
 
