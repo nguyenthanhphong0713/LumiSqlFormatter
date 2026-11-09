@@ -131,7 +131,7 @@
                                              FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+L)"/>
                                 </Grid>
 
-                                <Grid Margin="0,2,0,2">
+                                <Grid Margin="0,2,0,6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="100"/>
@@ -144,6 +144,21 @@
                                              PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
                                              Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
                                              FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Shift+R)"/>
+                                </Grid>
+
+                                <Grid Margin="0,2,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="100"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <TextBlock Text="Tạo nhanh Snippet:" FontWeight="Medium"/>
+                                        <TextBlock Text="Mở cửa sổ tạo snippet từ vùng chọn" FontSize="10" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding QuickSnippetShortcut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                             PreviewKeyDown="OnShortcutTextBoxPreviewKeyDown"
+                                             Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
+                                             FontWeight="SemiBold" ToolTip="Nhấn tổ hợp phím để gán (mặc định: Ctrl+Alt+S)"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
@@ -206,7 +221,7 @@
                                 <Border Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" BorderBrush="#B0C4DE" BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,2,0,0">
                                     <TextBlock FontSize="11" TextWrapping="Wrap">
                                         <Run Text="Phím tắt: Bôi đen mã T-SQL và nhấn " Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
-                                        <Bold><Run Text="Ctrl+Alt+S" Foreground="#007ACC"/></Bold>
+                                        <Bold><Run Text="{Binding QuickSnippetShortcut}" Foreground="#007ACC"/></Bold>
                                         <Run Text=" để tạo nhanh snippet" Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
                                     </TextBlock>
                                 </Border>

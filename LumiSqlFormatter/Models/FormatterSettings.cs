@@ -29,6 +29,7 @@ namespace LumiSqlFormatter.Models
         public string FormatUppercaseShortcut { get; set; } = "Ctrl+Alt+U";
         public string FormatLowercaseShortcut { get; set; } = "Ctrl+Alt+L";
         public string RefreshDbCacheShortcut { get; set; } = "Ctrl+Shift+R";
+        public string QuickSnippetShortcut { get; set; } = "Ctrl+Alt+S";
 
         public FormatterSettings Clone()
         {
@@ -44,7 +45,8 @@ namespace LumiSqlFormatter.Models
                 SnippetTheme = this.SnippetTheme,
                 FormatUppercaseShortcut = this.FormatUppercaseShortcut,
                 FormatLowercaseShortcut = this.FormatLowercaseShortcut,
-                RefreshDbCacheShortcut = this.RefreshDbCacheShortcut
+                RefreshDbCacheShortcut = this.RefreshDbCacheShortcut,
+                QuickSnippetShortcut = this.QuickSnippetShortcut
             };
         }
     }

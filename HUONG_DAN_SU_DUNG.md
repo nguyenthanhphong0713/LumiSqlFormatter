@@ -262,7 +262,7 @@ d:\LumiSqlFormatter\
   - **Cơ chế Cache metadata Database active (Database Metadata Cache):** Tự động truy vấn ngầm `sys.all_objects` / `sys.objects` từ phiên kết nối SSMS hiện tại để nạp toàn bộ danh mục thủ tục và hàm của database vào bộ nhớ cache in-memory.
   - **Tự động nhận diện thay đổi Database (Context Switch Re-cache):** Khi người dùng chuyển sang kết nối hoặc database khác, cache cũ sẽ tự động được xóa và quét lại (Re-cache) cho phù hợp với database mới.
   - **Làm mới Cache chủ động (Manual Refresh):** Bổ sung nút **"Làm Mới Cache Database"** trong **Tools -> Options** và lệnh **"Lumi: Refresh Database Objects Cache"** trên Menu chuột phải (Context Menu) cũng như Menu chính "Lumi SQL" để người dùng chủ động nạp lại metadata ngầm bất cứ lúc nào mà không gián đoạn thao tác soạn thảo.
-- **Tùy biến phím tắt thao tác (Hotkeys & Shortcuts Configuration):** Tích hợp khung cấu hình và bộ ghi nhận phím thông minh (Key recorder) trực tiếp trong **Tools -> Options**, cho phép người dùng tùy ý gán và đổi tổ hợp phím tắt cho cả 3 thao tác: Format Uppercase (`Ctrl+Alt+U`), Format Lowercase (`Ctrl+Alt+L`) và Refresh DB Cache (`Ctrl+Shift+R`).
+- **Tùy biến phím tắt thao tác (Hotkeys & Shortcuts Configuration):** Tích hợp khung cấu hình và bộ ghi nhận phím thông minh (Key recorder) trực tiếp trong **Tools -> Options**, cho phép người dùng tùy ý gán và đổi tổ hợp phím tắt cho cả 4 thao tác: Format Uppercase (`Ctrl+Alt+U`), Format Lowercase (`Ctrl+Alt+L`), Refresh DB Cache (`Ctrl+Shift+R`) và Tạo nhanh Snippet (`Ctrl+Alt+S`).
 - **Sửa triệt để hiện tượng tràn và cắt chữ (Text Clipping) trên giao diện SSMS:** Tối ưu hóa các nhãn, combobox theme, thanh công cụ thư mục snippet và bổ sung cuộn dọc mượt mà trên mọi tỷ lệ màn hình và DPI scaling.
 
 ---

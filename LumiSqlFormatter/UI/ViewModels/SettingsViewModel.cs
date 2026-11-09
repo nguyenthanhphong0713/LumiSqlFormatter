@@ -126,6 +126,13 @@ namespace LumiSqlFormatter.UI.ViewModels
             set => SetProperty(ref _refreshDbCacheShortcut, value);
         }
 
+        private string _quickSnippetShortcut = "Ctrl+Alt+S";
+        public string QuickSnippetShortcut
+        {
+            get => _quickSnippetShortcut;
+            set => SetProperty(ref _quickSnippetShortcut, value);
+        }
+
         public SnippetTheme SnippetTheme
         {
             get => _snippetTheme;
@@ -298,6 +305,7 @@ namespace LumiSqlFormatter.UI.ViewModels
             _formatUppercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatUppercaseShortcut) ? currentSettings.FormatUppercaseShortcut : "Ctrl+Alt+U";
             _formatLowercaseShortcut = !string.IsNullOrWhiteSpace(currentSettings.FormatLowercaseShortcut) ? currentSettings.FormatLowercaseShortcut : "Ctrl+Alt+L";
             _refreshDbCacheShortcut = !string.IsNullOrWhiteSpace(currentSettings.RefreshDbCacheShortcut) ? currentSettings.RefreshDbCacheShortcut : "Ctrl+Shift+R";
+            _quickSnippetShortcut = !string.IsNullOrWhiteSpace(currentSettings.QuickSnippetShortcut) ? currentSettings.QuickSnippetShortcut : "Ctrl+Alt+S";
 
             // Initialize commands
             SaveSettingsCommand = new RelayCommand(SaveSettings);
@@ -363,7 +371,8 @@ namespace LumiSqlFormatter.UI.ViewModels
                 SnippetTheme = SnippetTheme,
                 FormatUppercaseShortcut = FormatUppercaseShortcut,
                 FormatLowercaseShortcut = FormatLowercaseShortcut,
-                RefreshDbCacheShortcut = RefreshDbCacheShortcut
+                RefreshDbCacheShortcut = RefreshDbCacheShortcut,
+                QuickSnippetShortcut = QuickSnippetShortcut
             };
 
             _settingsService.SaveSettings(settings);

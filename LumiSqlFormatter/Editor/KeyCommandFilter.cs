@@ -129,9 +129,8 @@ namespace LumiSqlFormatter.Editor
                     return;
                 }
 
-                // Check for Ctrl+Alt+S shortcut to open Quick Snippet Creator
-                Key actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
-                if (actualKey == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == (ModifierKeys.Control | ModifierKeys.Alt))
+                // Check for Quick Snippet Creator shortcut (default: Ctrl+Alt+S)
+                if (ShortcutHelper.Matches(e, _settingsService.Settings.QuickSnippetShortcut))
                 {
                     e.Handled = true;
                     OpenQuickSnippetCreator();
@@ -288,9 +287,8 @@ namespace LumiSqlFormatter.Editor
                 return VSConstants.S_OK;
             }
 
-            // Check for Ctrl+Alt+S shortcut to open Quick Snippet Creator
-            if (Keyboard.IsKeyDown(Key.S) && 
-                (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == (ModifierKeys.Control | ModifierKeys.Alt))
+            // Check for Quick Snippet Creator shortcut (default: Ctrl+Alt+S)
+            if (ShortcutHelper.IsShortcutActive(_settingsService.Settings.QuickSnippetShortcut))
             {
                 OpenQuickSnippetCreator();
                 return VSConstants.S_OK;
