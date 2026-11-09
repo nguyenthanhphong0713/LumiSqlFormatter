@@ -91,5 +91,21 @@ namespace LumiSqlFormatter.Services
 
             return Keyboard.IsKeyDown(reqKey);
         }
+
+        public static bool Matches(KeyEventArgs e, string shortcutText)
+        {
+            if (e == null || string.IsNullOrWhiteSpace(shortcutText))
+                return false;
+
+            if (!TryParseShortcut(shortcutText, out var reqModifiers, out var reqKey))
+                return false;
+
+            Key actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (actualKey != reqKey)
+                return false;
+
+            var currentModifiers = Keyboard.Modifiers;
+            return currentModifiers == reqModifiers;
+        }
     }
 }

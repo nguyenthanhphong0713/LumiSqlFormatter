@@ -1,7 +1,7 @@
-# HƯỚNG DẪN SỬ DỤNG & TÀI LIỆU KỸ THUẬT TOÀN DIỆN
+﻿# HƯỚNG DẪN SỬ DỤNG & TÀI LIỆU KỸ THUẬT TOÀN DIỆN
 # LUMI SQL FORMATTER & SMART SNIPPETS (PHONGNT)
 
-> **Phiên bản:** 1.1.4  
+> **Phiên bản:** 1.1.5  
 > **Tác giả:** PHONGNT  
 > **Dự án:** `LumiSqlFormatter.Extension.2026`  
 > **Môi trường hỗ trợ:** SQL Server Management Studio (SSMS 18, 19, 20, 22+ x64)
@@ -239,14 +239,18 @@ d:\LumiSqlFormatter\
     │       ├── QuickSnippetViewModel.cs
     │       └── SettingsViewModel.cs            # Binding logic, CRUD snippets, Theme logic
     └── Properties/
-        └── AssemblyInfo.cs                     # Version 1.1.4.0
+        └── AssemblyInfo.cs                     # Version 1.1.5.0
 ```
 
 ---
 
 ## 7. NHẬT KÝ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
 
-### Phiên bản 1.1.4 (Bản hiện tại)
+### Phiên bản 1.1.5 (Bản hiện tại)
+- **Sửa lỗi đếm sai số lượng Stored Procedures & Functions:** Truy vấn trực tiếp sys.objects thay vì sys.all_objects để lấy chính xác các đối tượng của riêng database hiện tại, loại trừ hơn 2.000 đối tượng hệ thống tĩnh.
+- **Phân giải Database active đa tầng:** Tự động nhận diện chính xác database active theo cửa sổ Query Editor (qua Window Caption, ISqlEditorService, SMO ServerConnection) ngay khi chuyển dropdown hoặc tab.
+
+### Phiên bản 1.1.4
 - **Bổ sung tính năng định dạng & quản lý Cache trong Context Menu (Chuột phải trong Editor) & Menu chính "Lumi SQL":**
   - **Lumi Format Uppercase (`Ctrl+Alt+U`):** Quét toàn bộ khối mã được bôi đen (hoặc toàn bộ file nếu không bôi đen) và chuyển toàn bộ từ khóa, kiểu dữ liệu, hàm T-SQL sang IN HOA giống như tính năng auto-capitalization, bảo vệ an toàn chuỗi ký tự, chú thích, biến `@Year` và bảng tạm `#Temp`.
   - **Lumi Format Lowercase (`Ctrl+Alt+L`):** Chuyển toàn bộ mã sang chữ thường, đồng thời giữ nguyên định dạng gốc của `@variables`, biến bảng tạm `Temp variable table` (`@TempTable`), `#temp` tables (`#TempTable`), chuỗi ký tự dữ liệu `'...'` và chú thích.

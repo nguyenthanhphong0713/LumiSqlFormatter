@@ -18,7 +18,7 @@ using LumiSqlFormatter.UI;
 namespace LumiSqlFormatter
 {
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-    [InstalledProductRegistration("Lumi SQL Formatter (PHONGNT)", "Real-time SQL Auto-Capitalization & Smart Snippets for SSMS 22", "1.1.4")]
+    [InstalledProductRegistration("Lumi SQL Formatter (PHONGNT)", "Real-time SQL Auto-Capitalization & Smart Snippets for SSMS 22", "1.1.5")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.ShellInitialized_string, PackageAutoLoadFlags.BackgroundLoad)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]

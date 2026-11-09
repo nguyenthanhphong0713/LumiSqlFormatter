@@ -52,7 +52,7 @@
         <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Lumi Format Uppercase (Ctrl+Alt+U)</ButtonText>
+          <ButtonText>Lumi Format Uppercase</ButtonText>
         </Strings>
       </Button>
 
@@ -60,7 +60,7 @@
         <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Lumi Format Lowercase (Ctrl+Alt+L)</ButtonText>
+          <ButtonText>Lumi Format Lowercase</ButtonText>
         </Strings>
       </Button>
 
@@ -68,7 +68,7 @@
         <Parent guid="guidLumiSqlCmdSet" id="SsmsEditorContextMenuGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Lumi: Refresh Database Objects Cache (Ctrl+Shift+R)</ButtonText>
+          <ButtonText>Lumi: Refresh Database Objects Cache</ButtonText>
         </Strings>
       </Button>
 
@@ -122,9 +122,6 @@
   </CommandPlacements>
 
   <KeyBindings>
-    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatUppercase" editor="guidVSStd97" key1="U" mod1="Control Alt"/>
-    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidFormatLowercase" editor="guidVSStd97" key1="L" mod1="Control Alt"/>
-    <KeyBinding guid="guidLumiSqlCmdSet" id="cmdidRefreshDbCache" editor="guidVSStd97" key1="R" mod1="Control Shift"/>
   </KeyBindings>
 
   <Symbols>

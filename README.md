@@ -1,7 +1,7 @@
 # Lumi SQL Formatter & Smart Snippets (PHONGNT)
 
 [![SSMS Support](https://img.shields.io/badge/SSMS-18%20%7C%2019%20%7C%2020%20%7C%2022+-007ACC.svg)](https://learn.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms)
-[![VSIX Version](https://img.shields.io/badge/version-1.1.4-2D7D9A.svg)](d:/LumiSqlFormatter/LumiSqlFormatter/bin/Release/LumiSqlFormatter.vsix)
+[![VSIX Version](https://img.shields.io/badge/version-1.1.5-2D7D9A.svg)](d:/LumiSqlFormatter/LumiSqlFormatter/bin/Release/LumiSqlFormatter.vsix)
 [![Author](https://img.shields.io/badge/author-PHONGNT-107C41.svg)](https://github.com)
 
 **[English](#english) | [Tiếng Việt](#tiếng-việt)**

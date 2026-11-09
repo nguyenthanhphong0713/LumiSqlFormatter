@@ -35,7 +35,7 @@
                         <TextBlock Text="PHONGNT" FontWeight="Bold" FontSize="10" Foreground="White"/>
                     </Border>
                     <Border Background="#2D7D9A" CornerRadius="3" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v1.1.4" FontWeight="SemiBold" FontSize="10" Foreground="White"/>
+                        <TextBlock Text="v1.1.5" FontWeight="SemiBold" FontSize="10" Foreground="White"/>
                     </Border>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="T-SQL Formatting &amp; Snippets" FontSize="11" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>

@@ -39,6 +39,8 @@ namespace LumiSqlFormatter.Editor
 
             CurrentActiveFilter = this;
             _textView.GotAggregateFocus += (s, e) => CurrentActiveFilter = this;
+            _textView.VisualElement.PreviewKeyDown += OnTextViewPreviewKeyDown;
+            _textView.Closed += OnTextViewClosed;
 
             // Initialize Suggestion Popup
             _popupContent = new SnippetSuggestionPopup();
@@ -99,6 +101,94 @@ namespace LumiSqlFormatter.Editor
             }
         }
 
+        private void OnTextViewPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                // Check for Format Uppercase shortcut
+                if (ShortcutHelper.Matches(e, _settingsService.Settings.FormatUppercaseShortcut))
+                {
+                    e.Handled = true;
+                    FormatTextView(_textView, BatchFormatMode.UppercaseKeywords);
+                    return;
+                }
+
+                // Check for Format Lowercase shortcut
+                if (ShortcutHelper.Matches(e, _settingsService.Settings.FormatLowercaseShortcut))
+                {
+                    e.Handled = true;
+                    FormatTextView(_textView, BatchFormatMode.LowercaseAllExceptPreserved);
+                    return;
+                }
+
+                // Check for Refresh DB Cache shortcut
+                if (ShortcutHelper.Matches(e, _settingsService.Settings.RefreshDbCacheShortcut))
+                {
+                    e.Handled = true;
+                    _ = DatabaseMetadataCacheService.Instance.RefreshCacheAsync(true);
+                    return;
+                }
+
+                // Check for Ctrl+Alt+S shortcut to open Quick Snippet Creator
+                Key actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+                if (actualKey == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == (ModifierKeys.Control | ModifierKeys.Alt))
+                {
+                    e.Handled = true;
+                    OpenQuickSnippetCreator();
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                // Silently ignore
+            }
+        }
+
+        private void OnTextViewClosed(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_textView != null && _textView.VisualElement != null)
+                {
+                    _textView.VisualElement.PreviewKeyDown -= OnTextViewPreviewKeyDown;
+                    _textView.Closed -= OnTextViewClosed;
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static void SetCmdText(IntPtr pCmdText, string text)
+        {
+            if (pCmdText == IntPtr.Zero || string.IsNullOrEmpty(text))
+                return;
+
+            try
+            {
+                uint cmdtextf = (uint)Marshal.ReadInt32(pCmdText, 0);
+                if (cmdtextf == 0 || (cmdtextf & 1) != 0)
+                {
+                    int cwBuf = Marshal.ReadInt32(pCmdText, 8);
+                    if (cwBuf > 1)
+                    {
+                        int copyLen = Math.Min(text.Length, cwBuf - 1);
+                        char[] chars = new char[copyLen + 1];
+                        text.CopyTo(0, chars, 0, copyLen);
+                        chars[copyLen] = '\0';
+
+                        IntPtr pStr = new IntPtr(pCmdText.ToInt64() + 12);
+                        Marshal.Copy(chars, 0, pStr, chars.Length);
+                        Marshal.WriteInt32(pCmdText, 4, copyLen);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore any native memory writing errors
+            }
+        }
+
         public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
         {
             Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
@@ -113,6 +203,33 @@ namespace LumiSqlFormatter.Editor
                         cmdId == PkgCmdIDList.cmdidRefreshDbCache)
                     {
                         prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
+
+                        if (pCmdText != IntPtr.Zero)
+                        {
+                            var settings = _settingsService?.Settings ?? SettingsService.Instance.Settings;
+                            string text = null;
+                            if (cmdId == PkgCmdIDList.cmdidFormatUppercase)
+                            {
+                                string sc = !string.IsNullOrWhiteSpace(settings?.FormatUppercaseShortcut) ? $" ({settings.FormatUppercaseShortcut})" : "";
+                                text = $"Lumi Format Uppercase{sc}";
+                            }
+                            else if (cmdId == PkgCmdIDList.cmdidFormatLowercase)
+                            {
+                                string sc = !string.IsNullOrWhiteSpace(settings?.FormatLowercaseShortcut) ? $" ({settings.FormatLowercaseShortcut})" : "";
+                                text = $"Lumi Format Lowercase{sc}";
+                            }
+                            else if (cmdId == PkgCmdIDList.cmdidRefreshDbCache)
+                            {
+                                string sc = !string.IsNullOrWhiteSpace(settings?.RefreshDbCacheShortcut) ? $" ({settings.RefreshDbCacheShortcut})" : "";
+                                text = $"Lumi: Refresh Database Objects Cache{sc}";
+                            }
+
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                SetCmdText(pCmdText, text);
+                            }
+                        }
+
                         return VSConstants.S_OK;
                     }
                 }
